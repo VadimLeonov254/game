@@ -1,0 +1,33 @@
+#pragma once
+#ifndef CUBE_H
+#define CUBE_H
+#include "raylib.h"
+#include "hold.h"
+#include "route.h"
+#include<vector>
+#include "chunk.h"
+
+class Hold;
+class Route;
+
+class Cube{
+public:
+    Vector3 position;
+    float width, height, length;
+    Color color;
+
+    Cube(Vector3 pos, float w, float h, float l, Color c);
+    
+    std::vector<Route> routes;
+    
+    std::vector<Chunk> chunks;
+
+    void generateRoute();
+
+    void draw();
+    BoundingBox getBoundingBox();
+
+    bool setChunks();
+};
+
+#endif
