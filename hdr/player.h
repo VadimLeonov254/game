@@ -3,6 +3,7 @@
 #define PLAYER_H
 #include "raylib.h"
 #include "cube.h"
+#include<vector>
 
 class Cube;
 
@@ -10,16 +11,25 @@ class Player{
 public:
     
     int currChunk;
+    
+    int savedMaps = 0;
 
     float yaw = 0.0f;
     float pitch = 0.0f;
     
+    int check = 0;
+
     float currHeight = position.y - 1.8f;
 
     bool onHoldLA = false;
     bool onHoldRA = false;
-    bool onHoldRL = false;
     bool onHoldLL = false;
+    bool onHoldRL = false;
+    
+    float staminaLA = 1.0f;
+    float staminaRA = 1.0f;
+    float staminaLL = 1.0f;
+    float staminaRL = 1.0f;
 
     bool stretchedLeft = false;
     bool stretchedRight = false;
@@ -30,6 +40,10 @@ public:
     bool selectingLL = false;
 
     bool isTopped = true;
+    
+    bool createMap = false;
+    bool loadMap = false;
+
 
     Vector3 grabPointLA;
     Vector3 grabPointRA; 

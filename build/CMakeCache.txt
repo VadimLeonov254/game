@@ -343,6 +343,9 @@ game_IS_TOP_LEVEL:STATIC=ON
 //Value Computed by CMake
 game_SOURCE_DIR:STATIC=C:/Users/vadle/game
 
+//The directory containing a CMake configuration file for nlohmann_json.
+nlohmann_json_DIR:PATH=nlohmann_json_DIR-NOTFOUND
+
 //Path to a library.
 pkgcfg_lib_PC_RAYLIB_raylib:FILEPATH=C:/msys64/mingw64/lib/libraylib.dll.a
 

@@ -9,8 +9,14 @@
 class Environment{
 public:
 
-    Model LoadSkybox(const std::string& path);
-
+    Model skybox;
+    
+    void LoadSkybox(const std::string& path);
+    
+    
+    Model ground;
+    
+    void LoadGround(Shader& shader);
 };
 
 #endif

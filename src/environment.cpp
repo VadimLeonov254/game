@@ -3,6 +3,7 @@
 #include "raylib.h"
 #include "rlgl.h"
 #include "raymath.h"
+#include <random>
 
 #if defined(PLATFORM_DESKTOP)
     #define GLSL_VERSION            330
@@ -11,10 +12,10 @@
 #endif
 
 
-Model Environment::LoadSkybox(const std::string& path){
+void Environment::LoadSkybox(const std::string& path){
 
     Mesh cube = GenMeshCube(1.0f, 1.0f, 1.0f);
-    Model skybox = LoadModelFromMesh(cube);    
+    skybox = LoadModelFromMesh(cube);    
     
     bool useHDR = false;
 
@@ -32,8 +33,37 @@ Model Environment::LoadSkybox(const std::string& path){
     skybox.materials[0].maps[MATERIAL_MAP_CUBEMAP].texture = LoadTextureCubemap(image, CUBEMAP_LAYOUT_AUTO_DETECT);
     UnloadImage(image);
     
-    return skybox;
-
 }
 
+void Environment::LoadGround(Shader& shader){
+    
+    Mesh meshGround = GenMeshPlane(100.0f, 100.0f, 15.0f, 15.0f);
 
+    ground = LoadModelFromMesh(meshGround);
+
+    Texture2D texture_map = LoadTexture("res/green.png");
+
+    ground.materials[0].shader = shader;
+    ground.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = LoadTexture("res/green.png");
+    ground.materials[0].maps[MATERIAL_MAP_NORMAL].texture = LoadTexture("res/grass_normal.png");
+
+    GenTextureMipmaps(&ground.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture);
+    GenTextureMipmaps(&ground.materials[0].maps[MATERIAL_MAP_NORMAL].texture);
+
+    SetTextureFilter(ground.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_TRILINEAR);
+    SetTextureFilter(ground.materials[0].maps[MATERIAL_MAP_NORMAL].texture, TEXTURE_FILTER_TRILINEAR);
+
+    Vector3 *vertices = (Vector3 *)meshGround.vertices;
+    
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    std::uniform_real_distribution<float> distH(-0.3f, 0.3f);
+
+    for(int i = 0; i < meshGround.vertexCount; i++){
+        vertices[i].y = 1.0f + distH(gen);
+    }
+
+    UpdateMeshBuffer(meshGround, 0, meshGround.vertices, meshGround.vertexCount * 3 * sizeof(float), 0);
+
+}

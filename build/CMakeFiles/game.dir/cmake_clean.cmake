@@ -1,4 +1,6 @@
 file(REMOVE_RECURSE
+  "CMakeFiles/game.dir/src/button.cpp.obj"
+  "CMakeFiles/game.dir/src/button.cpp.obj.d"
   "CMakeFiles/game.dir/src/climbing.cpp.obj"
   "CMakeFiles/game.dir/src/climbing.cpp.obj.d"
   "CMakeFiles/game.dir/src/cube.cpp.obj"
@@ -13,6 +15,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/game.dir/src/player.cpp.obj.d"
   "CMakeFiles/game.dir/src/route.cpp.obj"
   "CMakeFiles/game.dir/src/route.cpp.obj.d"
+  "CMakeFiles/game.dir/src/ui.cpp.obj"
+  "CMakeFiles/game.dir/src/ui.cpp.obj.d"
   "game.exe"
   "game.exe.manifest"
   "game.pdb"

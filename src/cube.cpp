@@ -8,11 +8,53 @@
 #include "raymath.h"
 #include<utility>
 #include<memory>
+#include "json.hpp"
+#include "filesystem"
+#include<fstream>
 
-Cube::Cube(Vector3 pos, float w, float h, float l, Color c) : position(pos), width(w), height(h), length(l), color(c) {}
+using json = nlohmann::json;
+namespace fs = std::filesystem;
 
 void Cube::draw(){
     DrawCube(position, width, height, length, color);
+}
+
+void Cube::generateRoutesFromFile(std::string map_file){
+    
+
+    std::ifstream file(map_file);
+
+    if(!file.is_open()){
+        std::cerr << "Couldn't open file" << '\n';
+    }
+    
+    std::vector<Hold> holds;
+
+    json data = json::parse(file);
+
+    try{
+    
+        for(const auto& routefile : data["routes"]){
+            if(holds.size() > 0){
+                holds.clear();
+            }
+            for(const auto& hold : routefile["holds"]){
+                holds.push_back(Hold(position, (Vector3){(float)hold["holdX"], (float)hold["holdY"] - position.y, (float)hold["holdZ"] - position.z}, LIGHTGRAY));
+            }
+
+            Route route(holds);
+
+            routes.push_back(route.holds_route);
+    
+            for(int i = 0; i < holds.size(); i++){
+                holds[i].parentRoute = std::make_shared<Route>(route);
+            }
+        }
+
+    }catch(const json::parse_error& e){
+        std::cerr << "Could not parse the file" << e.what() << '\n';
+    }
+
 }
 
 void Cube::generateRoute(){
@@ -34,11 +76,12 @@ void Cube::generateRoute(){
     std::uniform_real_distribution<float> distW(-length/2.1f, length/2.1f);
 
     std::uniform_int_distribution<int> distS(1,2);
+    
 
-    Vector3 lastPos = {position.x, -height/2, distW(gen)};
-
+    Vector3 lastPos = {position.x + width/2, -height/2, distW(gen)};
+    
     while(lastPos.y < height/2){        
-        Vector3 newPos = {position.x, lastPos.y + distY(gen), lastPos.z + distZ(gen)};
+        Vector3 newPos = {position.x + width/2, lastPos.y + distY(gen), lastPos.z + distZ(gen)};
         
         float disp = distR(gen);
         int diss = distS(gen);
@@ -56,21 +99,26 @@ void Cube::generateRoute(){
         lastPos = newPos;
 
         if(lastPos.y <= height/2){
-            holds.push_back(Hold(this, lastPos, LIGHTGRAY));
+            Hold h = Hold(position, lastPos, LIGHTGRAY);
+            holds.push_back(h);
             if(disp < height/2 && diss == 2){
-                holds.push_back(Hold(this, (Vector3){lastPos.x, lastPos.y + disp, lastPos.z + disp}, LIGHTGRAY));
-                holds.push_back(Hold(this, (Vector3){lastPos.x, lastPos.y + disp, lastPos.z + disp}, LIGHTGRAY));
+                holds.push_back(Hold(position, (Vector3){lastPos.x, lastPos.y + disp, lastPos.z + disp}, LIGHTGRAY));
+                holds.push_back(Hold(position, (Vector3){lastPos.x, lastPos.y + disp, lastPos.z + disp}, LIGHTGRAY));
             }
         }
     }
+    
+    //std::cout << "all good" << '\n';
 
     Route route(holds);
 
     routes.push_back(route.holds_route);
     
     for(int i = 0; i < holds.size(); i++){
-        holds[i].parentHold = std::make_shared<Route>(route);
+        holds[i].parentRoute = std::make_shared<Route>(route);
     }
+    
+    //std::cout << "cooked" << '\n';
 
 }
 

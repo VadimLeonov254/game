@@ -8,6 +8,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
+  "C:/Users/vadle/game/src/button.cpp" "CMakeFiles/game.dir/src/button.cpp.obj" "gcc" "CMakeFiles/game.dir/src/button.cpp.obj.d"
   "C:/Users/vadle/game/src/climbing.cpp" "CMakeFiles/game.dir/src/climbing.cpp.obj" "gcc" "CMakeFiles/game.dir/src/climbing.cpp.obj.d"
   "C:/Users/vadle/game/src/cube.cpp" "CMakeFiles/game.dir/src/cube.cpp.obj" "gcc" "CMakeFiles/game.dir/src/cube.cpp.obj.d"
   "C:/Users/vadle/game/src/environment.cpp" "CMakeFiles/game.dir/src/environment.cpp.obj" "gcc" "CMakeFiles/game.dir/src/environment.cpp.obj.d"
@@ -15,6 +16,7 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "C:/Users/vadle/game/src/main.cpp" "CMakeFiles/game.dir/src/main.cpp.obj" "gcc" "CMakeFiles/game.dir/src/main.cpp.obj.d"
   "C:/Users/vadle/game/src/player.cpp" "CMakeFiles/game.dir/src/player.cpp.obj" "gcc" "CMakeFiles/game.dir/src/player.cpp.obj.d"
   "C:/Users/vadle/game/src/route.cpp" "CMakeFiles/game.dir/src/route.cpp.obj" "gcc" "CMakeFiles/game.dir/src/route.cpp.obj.d"
+  "C:/Users/vadle/game/src/ui.cpp" "CMakeFiles/game.dir/src/ui.cpp.obj" "gcc" "CMakeFiles/game.dir/src/ui.cpp.obj.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

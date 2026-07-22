@@ -5,12 +5,50 @@
 #include "player.h"
 #include "hold.h"
 #include<random>
+#include "json.hpp"
+#include "filesystem"
+#include<fstream>
+
+using json = nlohmann::json;
+namespace fs = std::filesystem;
+
+Cube Climbing::generateWallFromFile(std::string map_file){
+    
+    map_file = "maps/" + map_file; 
+    std::ifstream file(map_file);
+
+    if(!file.is_open()){
+        std::cerr << "Could not open the file" << '\n';
+    }    
+
+    
+    Cube wall;
+
+    wall.color = GRAY;
+
+    json data = json::parse(file);
+    try{
+        wall.position = (Vector3){data["wall"]["wallX"], data["wall"]["wallY"], data["wall"]["wallZ"]};
+        wall.width = data["wall"]["width"];
+        wall.height = data["wall"]["height"];
+        wall.length = data["wall"]["length"];
+        
+
+        wall.generateRoutesFromFile(map_file);
+
+    }catch(const json::parse_error& e){
+        std::cerr << "parse error" << e.what() << '\n';
+    }
+    
+    return wall;
+
+}
 
 Cube Climbing::generateWall(){
         
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_real_distribution<float> dist(-10.0f, 100.0f);
+    std::uniform_real_distribution<float> dist(10.0f, 100.0f);
     
 
     float h = std::fabs(dist(gen));
@@ -19,30 +57,53 @@ Cube Climbing::generateWall(){
     std::uniform_int_distribution<> r(1, l/4);
     
     int num = r(gen);
-    Cube wall({dist(gen), h/2, dist(gen)}, 1, h, l, GRAY);
+    //std::cout << num << '\n';
+    Cube wall;
+    
+    wall.position = (Vector3){-dist(gen), h/2, dist(gen)/10};
+    wall.width = 1.0f;
+    wall.height = h;
+    wall.length = l;
+    wall.color = GRAY;
     
     for(int i = 0; i < num; i++){
         wall.generateRoute();
     }
     
+    //std::cout << "wall position: " << wall.position.x << '\n' << wall.position.y << '\n' << wall.position.z << '\n';
     return wall;
+    
 
 }
 
 void Climbing::update(Player& player, std::vector<Chunk>& chunks){
-        Vector2 mousePos = GetMousePosition();
+        Vector2 mousePos = (Vector2){GetScreenWidth()/2.0f, GetScreenHeight()/2.0f};
         
-        Ray ray = GetScreenToWorldRay(GetMousePosition(), player.camera);
+        Ray ray = GetScreenToWorldRay(mousePos, player.camera);
         
         int chosenHold = -1; 
         
         float closestRay = INFINITY;
        
-        int lastChunk= player.currChunk;
+        int lastChunk = player.currChunk;
+        
+        //std::cout << chunks.size() << '\n';
 
-        player.currChunk = player.position.y/10;
+        player.currChunk = static_cast<int>(player.position.y / 10.0f);
 
-        chunks[player.currChunk].isActive = true; 
+        if(player.currChunk < 0)
+            player.currChunk = 0;
+
+        if(player.currChunk >= chunks.size())
+            player.currChunk = chunks.size() - 1;
+
+        if(player.position.y < 15.0f){
+            chunks[0].isActive = true;
+        }else{
+            chunks[0].isActive = false;
+        }
+       
+        chunks[player.currChunk].isActive = true;
 
         bool foundHold = false;
         Vector3 holdPointShoulders = {0};
@@ -52,40 +113,39 @@ void Climbing::update(Player& player, std::vector<Chunk>& chunks){
         Vector3 hipsPoint = {player.position.x, player.position.y - 1.1f, player.position.z}; 
         
         bool checkLegs = player.onHoldRL || player.onHoldLL;
-       
-                std::vector<Hold> holds = chunks[player.currChunk].holds_chunk;
-                if(player.currChunk != 0){
-                    holds.insert(holds.end(), chunks[player.currChunk].holds_chunk.begin(), chunks[player.currChunk].holds_chunk.end());
-                }
-                for(int i = 0; i < holds.size(); i++){
-                    float distP = Vector3Distance(player.position, holds[i].position);
-                    if(distP > 1.5f){
-                        continue;
-                    }
-                    if(player.selectingRA || player.selectingLA){
-                        float distShoulders = Vector3Distance(shouldersPoint, holds[i].position);
-                        RayCollision collision = GetRayCollisionBox(ray, holds[i].getBoundingBox());
-                        if(collision.hit && distShoulders <= player.limbLength){
-                            if(collision.distance < closestRay){
-                                closestRay = collision.distance;
-                                holdPointShoulders = collision.point; 
-                                foundHold = true;
-                            }
-                        }
-                    }
+        if(player.check == 0 || lastChunk != player.currChunk){
+            holds.insert(holds.end(), chunks[player.currChunk].holds_chunk.begin(), chunks[player.currChunk].holds_chunk.end());
+            player.check = 1;    
+        }
 
-                    if(player.selectingRL || player.selectingLL){
-                        float distHips = Vector3Distance(hipsPoint, holds[i].position);
-                        RayCollision collision = GetRayCollisionBox(ray, holds[i].getBoundingBox());
-                        if(collision.hit && distHips <= player.limbLength){
-                            if(collision.distance < closestRay){
-                                closestRay = collision.distance;
-                                holdPointHips = collision.point; 
-                                foundHold = true;
-                            }
+        for(int i = 0; i < holds.size(); i++){
+            float distP = Vector3Distance(player.position, holds[i].position);
+                if(distP > 1.5f){
+                    continue;
+                }
+                if(player.selectingRA || player.selectingLA){
+                    float distShoulders = Vector3Distance(shouldersPoint, holds[i].position);
+                    RayCollision collision = GetRayCollisionBox(ray, holds[i].getBoundingBox());
+                    if(collision.hit && distShoulders <= player.limbLength){
+                        if(collision.distance < closestRay){
+                            closestRay = collision.distance;
+                            holdPointShoulders = collision.point; 
+                            foundHold = true;
                         }
                     }
                 }
+            if(player.selectingRL || player.selectingLL){
+                float distHips = Vector3Distance(hipsPoint, holds[i].position);
+                RayCollision collision = GetRayCollisionBox(ray, holds[i].getBoundingBox());
+                if(collision.hit && distHips <= player.limbLength){
+                    if(collision.distance < closestRay){
+                        closestRay = collision.distance;
+                        holdPointHips = collision.point; 
+                        foundHold = true;
+                    }
+                }
+            }
+        }
 
                 if(IsKeyPressed(KEY_E)){
                     if(!player.onHoldRA){

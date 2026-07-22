@@ -22,13 +22,11 @@ public:
     Color color;
     bool isVisible;
     
-    std::shared_ptr<Route> parentHold;
+    std::shared_ptr<Route> parentRoute;
 
     Vector3 position;
     
-    Cube* wall;
-
-    Hold(Cube* wall, Vector3 offset, Color color);
+    Hold(Vector3 wallPos, Vector3 offset, Color color);
 
     Vector3 getWorldPosition();
     void draw();

@@ -6,6 +6,9 @@
 #include "route.h"
 #include<vector>
 #include "chunk.h"
+#include "json.hpp"
+#include "filesystem"
+#include<fstream>
 
 class Hold;
 class Route;
@@ -16,13 +19,14 @@ public:
     float width, height, length;
     Color color;
 
-    Cube(Vector3 pos, float w, float h, float l, Color c);
-    
+
     std::vector<Route> routes;
     
     std::vector<Chunk> chunks;
 
     void generateRoute();
+    
+    void generateRoutesFromFile(std::string map_file);
 
     void draw();
     BoundingBox getBoundingBox();

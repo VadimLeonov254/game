@@ -15,7 +15,10 @@ add_executable(game
     src/climbing.cpp
     src/route.cpp
     src/environment.cpp
+    src/ui.cpp
+    src/button.cpp
 )
+
 
 target_link_libraries(game
     raylib

@@ -11,6 +11,22 @@
 #include<filesystem>
 #include "rlgl.h"
 #include "environment.h"
+#include<fstream>
+#include "json.hpp"
+#include "ui.h"
+#include<string>
+#include<vector>
+#include "button.h"
+
+using json = nlohmann::json;
+
+
+#define NANOSVG_IMPLEMENTATION         
+#include "nanosvg.h"
+
+#define NANOSVGRAST_IMPLEMENTATION
+#include "nanosvgrast.h"
+
 
 #if defined(PLATFORM_DESKTOP)
     #define GLSL_VERSION            330
@@ -19,253 +35,426 @@
 #endif
 
 
+enum class Screen{
+    
+    MENU,
+    GAME,
+    PAUSE
+
+};
+
+enum class Menu{
+
+    MAIN,
+    MAPS
+
+};
+
+namespace fs = std::filesystem;
+
+static Image LoadImageSVG(const char *fileName, int width, int height);
 int main(void){
+    
+    fs::path maps_folder = "maps";
+    
+    std::vector<fs::directory_entry> map_files;
+    
+    std::vector<Button> mapButtons;
+    
+    std::vector<Button> mapCloseButtons;
+
+    if(fs::exists("maps") && fs::is_directory("maps")){
+        for(auto& entry : fs::directory_iterator("maps")){
+            map_files.push_back(entry);
+        }
+    }else{
+        std::cerr << "Directory does not exist." << std::endl;
+    }
+    
+
     SetConfigFlags(FLAG_WINDOW_TOPMOST | FLAG_WINDOW_UNDECORATED | FLAG_MSAA_4X_HINT);
     InitWindow(GetMonitorWidth(0), GetMonitorHeight(0), "the_climb"); 
+    
+    Screen CurrentScreen = Screen::MENU;
+    
+    Menu CurrentMenu = Menu::MAIN;
+    
+    Image imageLogo = LoadImageSVG("res/RCKCLMB.svg", 600, 300);
+
+    Texture2D logo = LoadTextureFromImage(imageLogo);
+
+    Button StartButton = Button(GetScreenWidth() * 0.1f, GetScreenHeight() * 0.05f, GetScreenWidth() * 0.45f, GetScreenHeight() * 0.3f, WHITE);
+    
+    Button GameButton = Button(GetScreenWidth() * 0.45f, GetScreenHeight() * 0.35f, GetScreenWidth() * 0.1f, GetScreenHeight() * 0.055f, WHITE);
+    
+    Button NewGameButton = Button(GetScreenWidth() * 0.1f, GetScreenHeight() * 0.05f, GetScreenWidth() * 0.45f, GetScreenHeight() * 0.3f, WHITE);
+    
+    Button BackButton = Button(GetScreenWidth() * 0.1f, GetScreenHeight() * 0.05f, GetScreenWidth() * 0.055f, GetScreenWidth() * 0.055f, WHITE);
+   
+    for(int i = 0; i < map_files.size(); i++){
+        Button button = Button(GetScreenWidth() * 0.1f, GetScreenHeight() * 0.05f, GetScreenWidth() * 0.45f, GetScreenHeight() * 0.4f + GetScreenHeight() * 0.06f*i, WHITE);
+        Button closeButton = Button(GetScreenHeight() * 0.05f, GetScreenHeight() * 0.05f, button.width + GetScreenWidth() * 0.45f, GetScreenHeight() * 0.4f + GetScreenHeight() * 0.06f*i, (Color){179, 0, 0, 255});
+        
+        mapButtons.push_back(button);
+        mapCloseButtons.push_back(closeButton);
+    }
+
+    int currSeed;    
+
+    Font font = LoadFontEx("res/Naked Power Bd.otf", 100, NULL, 0);
+
     Player player;
     Climbing climbing;
-    
+
+    Ui ui;
+
     Environment env;
 
-    bool mapIsClosed = true;
+    Cube wall;
     
-    Cube wall = climbing.generateWall();
-    
-    bool isSet = wall.setChunks();
+    Chunk ch;
+
+    bool isSet;
 
     std::random_device rd;
 
     std::mt19937 gen(rd());
 
     std::vector<Hold> holds;
-    
+
     std::vector<Hold> holds_map;
-    
+
     int tot = 0;
-    
+
     Vector2 lastPos;
     Vector2 nextPos;
 
     bool showMsg = false;
-    
+
     player.camera.projection = CAMERA_PERSPECTIVE;
-    
+
     Camera camera = player.camera;
 
     int cameraMode = CAMERA_FIRST_PERSON;
-    
-    Model skybox = env.LoadSkybox("res/skybox.png");
+
+    env.LoadSkybox("res/skybox.png");
 
     DisableCursor();
 
     SetTargetFPS(60);
-    
+
     Shader shader = LoadShader(TextFormat("res/shaders/normalmap.vs", GLSL_VERSION),
                                TextFormat("res/shaders/normalmap.fs", GLSL_VERSION));
 
     shader.locs[SHADER_LOC_MAP_NORMAL] = GetShaderLocation(shader, "normalMap");
     shader.locs[SHADER_LOC_VECTOR_VIEW] = GetShaderLocation(shader, "viewPos");
 
-    Vector3 lightPosition = { 10.0f, 10.0f, 10.0f };
+    Vector3 lightPosition = { 10.0f, 10.0f, -10.0f };
     int lightPosLoc = GetShaderLocation(shader, "lightPos");    
 
-    Image image = GenImagePerlinNoise(256, 256, 100, 100, 2.0f);
+    env.LoadGround(shader);
 
-    Texture2D texture = LoadTextureFromImage(image);
-    Texture2D texture_map = texture;
-    
-    Mesh mesh = GenMeshHeightmap(image, (Vector3){256,8,256});
-    GenMeshTangents(&mesh);
-    Model model = LoadModelFromMesh(mesh);
-
-    texture_map = LoadTexture("res/green.png");
-    
-    model.materials[0].shader = shader;
-    model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = LoadTexture("res/green.png");
-    model.materials[0].maps[MATERIAL_MAP_NORMAL].texture = LoadTexture("res/grass_normal.png");
-    
-    GenTextureMipmaps(&model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture);
-    GenTextureMipmaps(&model.materials[0].maps[MATERIAL_MAP_NORMAL].texture);
-
-    SetTextureFilter(model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_TRILINEAR);
-    SetTextureFilter(model.materials[0].maps[MATERIAL_MAP_NORMAL].texture, TEXTURE_FILTER_TRILINEAR);
-   
     float specularExponent = 1.0f;
     int specularExponentLoc = GetShaderLocation(shader, "specularExponent");
 
     int useNormalMap = 0;
     int useNormalMapLoc = GetShaderLocation(shader, "useNormalMap"); 
-    
-    Vector3 mapPosition = {-50.0f,-5.0f, -50.0f};
-    
 
+    Vector3 mapPosition = {0.0f, 0.0f, 0.0f};
+    
+    json jsonObj;
+    
     while(!WindowShouldClose()){
+        
+        switch(CurrentScreen){
+            case Screen::MENU:{
+                
+                ShowCursor();
+                switch(CurrentMenu){
+                    case Menu::MAIN:{
+                        if(GameButton.isClicked()){
+                            CurrentMenu = Menu::MAPS;
+                        }         
+                    } break;
+                    
+                    case Menu::MAPS:{
+                        
+                        if(BackButton.isClicked()){
+                            CurrentMenu = Menu::MAIN;
+                        }
 
+                        if(NewGameButton.isClicked()){
+                            CurrentScreen = Screen::GAME;
+                            player.createMap = true;
+                        }
 
-        if(player.isTopped == true && player.currHeight == 0){
-            wall = climbing.generateWall();
-            isSet = wall.setChunks();
-            player.isTopped = false;
-            for(int i = 0; i < wall.routes.size(); i++){
-                for(int k = 0; k < wall.routes[i].holds_route.size(); k++){
-                    tot+=1;
+                    } break;
                 }
-            }
-        }
-        float dt = GetFrameTime();
-        
-        Vector3 prevPos = player.position;
-        Vector3 prevVel = player.velocity;
-        
-        if(mapIsClosed == true){
-            player.update(dt);
-            DisableCursor();
-            player.applyMovement(dt);
-            player.applyCollision(dt, wall);
-        }else{
-            ShowCursor();
-        } 
-        climbing.update(player, wall.chunks);
+            } break;
+            
+            case Screen::GAME:{
 
+                if(player.createMap == true){
+                    //std::cout << "just spawned" << '\n';
+                    wall = climbing.generateWall();
+                    
+                    isSet = wall.setChunks();
+                    //std::cout << "well" << '\n';
+                    player.isTopped = false;
+                    
+                    //std::cout << wall.chunks.size() << '\n';
+                    
+                    //std::cout << wall.routes.size() << '\n';
+                    jsonObj["wall"] = {
+                        {"width", wall.width},
+                        {"height", wall.height},
+                        {"length", wall.length},
+                        {"wallX", wall.position.x},
+                        {"wallY", wall.position.y},
+                        {"wallZ", wall.position.z}
+                    };
+                    
+                    
+                    jsonObj["routes"] = json::array();
 
-        float lightPos[3] = {lightPosition.x, lightPosition.y, lightPosition.z};
-        SetShaderValue(shader, lightPosLoc, lightPos, SHADER_UNIFORM_VEC3);
-        float camPos[3] = {camera.position.x, camera.position.y, camera.position.z};
-        SetShaderValue(shader, shader.locs[SHADER_LOC_VECTOR_VIEW], camPos, SHADER_UNIFORM_VEC3);
+                    for (const auto& route : wall.routes) {
+                        json routeJson;
+                        routeJson["holds"] = json::array();
 
-        SetShaderValue(shader, specularExponentLoc, &specularExponent, SHADER_UNIFORM_FLOAT);
+                        for (const auto& hold : route.holds_route) {
+                            routeJson["holds"].push_back({
+                                {"holdX", hold.position.x},
+                                {"holdY", hold.position.y},
+                                {"holdZ", hold.position.z}
+                            });
+                        }
 
-        SetShaderValue(shader, useNormalMapLoc, &useNormalMap, SHADER_UNIFORM_INT);
-
-
-        BeginDrawing();
-
-        ClearBackground(WHITE);
-
-        BeginMode3D(player.camera);
-            rlDisableBackfaceCulling();
-            rlDisableDepthMask();
-            DrawModel(skybox, (Vector3){0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
-            rlEnableBackfaceCulling();
-            rlEnableDepthMask();
-        
-            BeginShaderMode(shader);
-               DrawModel(model, (Vector3){ -10.0f, -10.0f, -10.0f }, 1.0f, (Color) {255, 255, 255, 255});
-            EndShaderMode();
- 
-            wall.draw();
-            for(int k = 0; k < wall.routes.size(); k++){
-                holds = wall.routes[k].holds_route;
-                for(int i = 0; i < holds.size(); i++){
-                    holds[i].draw();
-                }
-            }
-            climbing.drawLimbs(player); 
-       
-
-        EndMode3D();
-           
-        Chunk ch = wall.chunks[player.currChunk];
-
-        DrawText(TextFormat("Number of chunks: %01i", wall.chunks.size()), 10, 130, 20, RED);
-        DrawText(TextFormat("Current chunk: %01i", player.currChunk), 10, 150, 20, RED);
-        DrawText(TextFormat("The number of holds in the chunk %01i is %01i", player.currChunk, ch.holds_chunk.size()), 10, 170, 20, RED);
-        DrawText(TextFormat("The total number of holds is %01i", tot), 10, 210, 20, RED);
-       
-        if(isSet){
-            DrawText("Chunks has been generated!", 10, 190, 20, RED);
-        }
-
-        if(player.selectingLA){
-            DrawCircle(GetScreenWidth() * 0.45, GetScreenHeight()*0.45, 3, RED);
-        }else if(player.onHoldLA == true){
-            DrawCircle(GetScreenWidth() * 0.45, GetScreenHeight()*0.45, 3, GREEN);
-        }else if(player.onHoldLA == false){
-            DrawCircle(GetScreenWidth() * 0.45, GetScreenHeight()*0.45, 3, BLACK);
-        }
-
-        if(player.selectingRA){
-            DrawCircle(GetScreenWidth() * 0.55, GetScreenHeight()*0.45, 3, RED);
-        }else if(player.onHoldRA == true){
-            DrawCircle(GetScreenWidth() * 0.55, GetScreenHeight()*0.45, 3, GREEN);
-        }else if(player.onHoldRA == false){
-            DrawCircle(GetScreenWidth() * 0.55, GetScreenHeight()*0.45, 3, BLACK);
-        }
-
-        if(player.selectingRL){
-            DrawCircle(GetScreenWidth() * 0.55, GetScreenHeight()*0.55, 3, RED);
-        }else if(player.onHoldRL == true){
-            DrawCircle(GetScreenWidth() * 0.55, GetScreenHeight()*0.55, 3, GREEN);
-        }else if(player.onHoldRL == false){
-            DrawCircle(GetScreenWidth() * 0.55, GetScreenHeight()*0.55, 3, BLACK);
-        }
-
-        if(player.selectingLL){
-            DrawCircle(GetScreenWidth() * 0.45, GetScreenHeight()*0.55, 3, RED);
-        }else if(player.onHoldLL == true){
-            DrawCircle(GetScreenWidth() * 0.45, GetScreenHeight()*0.55, 3, GREEN);
-        }else if(player.onHoldLL == false){
-            DrawCircle(GetScreenWidth() * 0.45, GetScreenHeight()*0.55, 3, BLACK);
-        }
-
-        
-        DrawCircle(GetScreenWidth()/2, GetScreenHeight()/2, 3, BLACK);
-        
-        if(IsKeyPressed(KEY_TAB)){
-            mapIsClosed = !mapIsClosed; 
-        }
-        
-        if(mapIsClosed == false){
-            DrawRectangle(GetScreenWidth() * 0.1f, GetScreenHeight() * 0.1f, GetScreenWidth() * 0.8f, GetScreenHeight() * 0.8f, (Color){100, 100, 200, 255});
-            DrawRectangle(GetScreenWidth() * 0.15f, GetScreenHeight() * 0.15f, GetScreenWidth() * 0.7f, GetScreenHeight() * 0.7f, (Color){249, 251, 255, 255});
-            for(int i = 0; i < wall.routes.size(); i++){
-                holds_map = wall.routes[i].holds_route;
-                for(int k = 0; k < holds_map.size(); k+=10){
-                    float xNew = (holds_map[k].getWorldPosition().z - wall.position.z) * GetScreenWidth() * 0.7f / wall.length;
-                    float yNew = (holds_map[k].getWorldPosition().y * GetScreenHeight() - wall.position.y) * 0.7f / wall.height;
-
-                    if(k == 0){
-                        lastPos = {GetScreenWidth() * 0.5f - xNew, GetScreenHeight() * 0.85f - yNew};
-                    }else{
-                        nextPos = {GetScreenWidth() * 0.5f - xNew, GetScreenHeight() * 0.85f - yNew};
-                        DrawLineEx(lastPos, nextPos, 2.5, BLACK);
-                        lastPos = nextPos;
+                        jsonObj["routes"].push_back(routeJson);
                     }
 
+    
+                    player.createMap = false;         
+                   
+                    std::uniform_int_distribution<int> seed(1,10000);
+                    
+                    currSeed = seed(gen);
+                    std::string currSeedStr = "maps/wall_" + std::to_string(currSeed) + ".json";
+
+                    std::ofstream file(currSeedStr);
+                    if(file.is_open()) {
+                        file << jsonObj.dump(4);
+                        file.close();
+                    }
+ 
                 }
+                
+                float dt = GetFrameTime();
+        
+                Vector3 prevPos = player.position;
+                Vector3 prevVel = player.velocity;
+        
+                if(ui.mapIsClosed == true){
+                    player.update(dt);
+                    DisableCursor();
+                    player.applyMovement(dt);
+                    player.applyCollision(dt, wall);
+                }else{
+                    ShowCursor();
+                } 
+                climbing.update(player, wall.chunks);
+
+                ch = wall.chunks[player.currChunk];
+                
+                //std::cout << "hold position to check: " << wall.routes[0].holds_route[0].position.x << '\n'; 
+            } break;
+
+        }
+
+        
+        BeginDrawing();
+        
+            switch (CurrentScreen){
+                
+                case Screen::MENU:{
+                    ClearBackground(BLACK);
+                    
+                    DrawTextureEx(logo, (Vector2){GetScreenWidth()*0.5f-logo.width*0.5f, GetScreenHeight()*0.15f-logo.height*0.5f}, 0.0f, 1.0f, WHITE);                
+
+                    if(IsKeyDown(KEY_LEFT_CONTROL)){
+                        DrawLineV((Vector2){GetScreenWidth()*0.5f, 0.0f}, (Vector2){GetScreenWidth()*0.5f, (float)GetScreenHeight()}, PINK);
+                    }
+
+                    switch(CurrentMenu){
+                        case Menu::MAIN:{
+                            StartButton.drawButtonText(50.0f, font, "Play", "center", "center", BLACK);
+                            //DrawTextEx(font, "Play", (Vector2){GameButton.x, GameButton.y}, 50.0f, 1.0f, BLACK);
+                        } break;
+
+                        case Menu::MAPS:{
+                            NewGameButton.drawButtonText(40.0f, font, "New Game", "center", "center", BLACK);
+
+                            BackButton.drawButton();
+                            if(fs::exists(maps_folder) && fs::is_directory(maps_folder)){
+                                for(int i = 0; i < map_files.size(); i++){
+                                    if(fs::is_regular_file(map_files[i])){
+                                        mapButtons[i].drawButtonText(25.0f, font, map_files[i].path().filename().string().c_str(), "center", "center", BLACK);
+                                        mapCloseButtons[i].drawButtonText(50.0f, font, "X", "center", "center", (Color){97, 16, 16, 255}); 
+
+                                        if(mapButtons[i].isClicked()){
+                                            //std::cout << map_files[i].path().filename().string().c_str() << '\n';
+
+                                            wall = climbing.generateWallFromFile(map_files[i].path().filename().string().c_str());
+                                            isSet = wall.setChunks();
+                                            CurrentScreen = Screen::GAME;
+                                        }
+
+                                        if(mapCloseButtons[i].isClicked()){
+                                            std::cout << map_files[i].path().filename().string().c_str() << '\n';
+                                            fs::remove("maps/"+map_files[i].path().filename().string());
+                                            map_files.erase(map_files.begin() + i);
+                                        }
+
+                                        //DrawText(map_files[i].path().filename().string().c_str(), GetScreenWidth()/2, GetScreenHeight()/2 + i * 10, 5, WHITE);
+                                        //std::cout << "File: " << map_files[i].path().filename() << "\n";
+                                    }
+                                }
+                            }else{
+                                std::cerr << "Path does not exist or is not a directory.\n";
+                            }
+
+                        } break;
+
+                    }
+
+                } break;
+                
+                case Screen::GAME:{
+                    ClearBackground(WHITE);
+                    float lightPos[3] = {lightPosition.x, lightPosition.y, lightPosition.z};
+                    SetShaderValue(shader, lightPosLoc, lightPos, SHADER_UNIFORM_VEC3);
+                    float camPos[3] = {camera.position.x, camera.position.y, camera.position.z};
+                    SetShaderValue(shader, shader.locs[SHADER_LOC_VECTOR_VIEW], camPos, SHADER_UNIFORM_VEC3);
+
+                    SetShaderValue(shader, specularExponentLoc, &specularExponent, SHADER_UNIFORM_FLOAT);
+
+                    SetShaderValue(shader, useNormalMapLoc, &useNormalMap, SHADER_UNIFORM_INT);
+
+
+                    BeginMode3D(player.camera);
+            
+                    rlDisableBackfaceCulling();
+                    rlDisableDepthMask();
+                    DrawModel(env.skybox, (Vector3){0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
+                    rlEnableBackfaceCulling();
+                    rlEnableDepthMask();
+        
+                    BeginShaderMode(shader);
+                        DrawModel(env.ground, mapPosition, 1.0f, (Color) {255, 255, 255, 255});
+                    EndShaderMode();
+ 
+                    
+                    wall.draw();
+                   
+                    //std::cout << "routes: " << wall.routes.size() << '\n';
+                    for(int i = 0; i < wall.routes.size(); i++){
+                        //std::cout << "hold position to check 2: " << wall.routes[0].holds_route[0].position.x << '\n'; 
+                        for(int k = 0; k < wall.routes[i].holds_route.size(); k++){
+                            wall.routes[i].holds_route[k].draw();
+                            //std::cout << "hold position: " << wall.routes[i].holds_route[k].position.x << '\n'; 
+                        }
+                    }
+                    
+                    climbing.drawLimbs(player);
+
+                    EndMode3D();
+                    
+                    ui.drawDebug(player, wall, ch);
+
+                    if(isSet){
+                        DrawText("Chunks has been generated!", 10, 190, 20, RED);
+                    }
+                    
+                    ui.drawCrosshair(player);
+       
+                    ui.drawMap(wall);  
+                    
+                } break;
+
             }
-        }
-        
-
-        DrawText(TextFormat("camera pos: %.2f, %.2f, %.2f", player.position.x, player.position.y, player.velocity.z), 10, 10, 20, RED);
-        if(player.onHoldLA || player.onHoldRA){
-            DrawText("Climber is on the wall!", 10, 30, 20, RED);
-        }else{
-            DrawText("Climber is not on the wall!", 10, 30, 20, RED);
-        }
-        
-        if(player.isGrounded){
-            DrawText("Climber is on the ground!", 10, 70, 20, RED);
-        }else{
-            DrawText("Climber is not on the ground!", 10, 70, 20, RED);
-        }
-
-        DrawText(TextFormat("wall pos: %.2f, %.2f, %.2f", wall.position.x, wall.position.y, wall.position.z), 10, 50, 20, RED);
-        
-        DrawText(TextFormat("%.2f", player.position.y - 1.8f), GetScreenWidth()/2, 30, 22, Fade(BLACK, 0.5f));
-
-        DrawText(TextFormat("Number of routes on the wall: %01i", wall.routes.size()), 10, 90, 20, RED);
-        
-        if(player.selectingLA || player.selectingRA || player.selectingLL || player.selectingRL){
-            DrawText("Player is selecting!", 10, 110, 20, RED);
-        }
-
-
-
+           
         EndDrawing();
 
     }
     
 
     CloseWindow();
+}
+
+static Image LoadImageSVG(const char *fileName, int width, int height)
+{
+    Image image = { 0 };
+
+    if ((strcmp(GetFileExtension(fileName), ".svg") == 0) ||
+        (strcmp(GetFileExtension(fileName), ".SVG") == 0))
+    {
+        int dataSize = 0;
+        unsigned char *fileData = NULL;
+
+        fileData = LoadFileData(fileName, &dataSize);
+
+        // Make sure the file data contains an EOL character: '\0'
+        if ((dataSize > 0) && (fileData[dataSize - 1] != '\0'))
+        {
+            fileData = static_cast<unsigned char*>(RL_REALLOC(fileData, dataSize + 1));
+            fileData[dataSize] = '\0';
+            dataSize += 1;
+        }
+
+        // Validate fileData as valid SVG string data
+        //<svg xmlns="http://www.w3.org/2000/svg" width="2500" height="2484" viewBox="0 0 192.756 191.488">
+        if ((fileData != NULL) &&
+            (fileData[0] == '<') &&
+            (fileData[1] == 's') &&
+            (fileData[2] == 'v') &&
+            (fileData[3] == 'g'))
+        {
+            
+            struct NSVGimage *svgImage = nsvgParse(reinterpret_cast<char*>(fileData), "px", 96.0f); 
+            unsigned char *imgData = static_cast<unsigned char*>(RL_MALLOC(svgImage->width * svgImage->height * 4));
+            // NOTE: If required width or height is 0, using default SVG internal value
+            if (width == 0) width = svgImage->width;
+            if (height == 0) height = svgImage->height;
+
+            // Calculate scales for both the width and the height
+            float scaleWidth = width/svgImage->width;
+            float scaleHeight = height/svgImage->height;
+
+            // Set the largest of the 2 scales to be the scale to use
+            float scale = (scaleHeight > scaleWidth)? scaleWidth : scaleHeight;
+
+            int offsetX = 0;
+            int offsetY = 0;
+
+            if (scaleHeight > scaleWidth) offsetY = (height - svgImage->height*scale)/2;
+            else offsetX = (width - svgImage->width*scale)/2;
+
+            // Rasterize
+            struct NSVGrasterizer *rast = nsvgCreateRasterizer();
+            nsvgRasterize(rast, svgImage, offsetX, offsetY, scale, imgData, width, height, width*4);
+
+            // Populate image struct with all data
+            image.data = imgData;
+            image.width = width;
+            image.height = height;
+            image.mipmaps = 1;
+            image.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+
+            nsvgDelete(svgImage);
+            nsvgDeleteRasterizer(rast);
+        }
+
+        UnloadFileData(fileData);
+    }
+
+    return image;
 }

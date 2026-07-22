@@ -7,7 +7,6 @@
 Player::Player() {
     position = {0.0f, 1.8f, 4.0f};
     camera.position = position;
-    camera.target = {0.0f, 1.8f, 0.0f};
     camera.up = {0.0f, 1.0f, 0.0f};
     camera.fovy = 60.0f;
     camera.projection = CAMERA_PERSPECTIVE;
@@ -216,12 +215,19 @@ void Player::applyMovement(float dt){
        
         if((onHoldRL && onHoldLL) && IsKeyDown(KEY_W)){
             velocity.y += std::fabs(Vector3DotProduct(Vector3Subtract(tempShoulders, grabPointLL), Vector3Subtract(tempShoulders, grabPointRL))) * 50 * dt;
+            if(staminaLL > 0 && staminaRL > 0){
+                staminaLL -= 0.03f;
+                staminaRL -= 0.03f;
+            }
         }else if ((onHoldRL && !onHoldLL) && IsKeyDown(KEY_W)){
             int add = std::fabs(Vector3DotProduct(Vector3Subtract(tempShoulders, grabPointRL), tempShoulders));
             if(add == 0){
                 velocity.y += 1.5 * dt;
             }else{
                 velocity.y += add * 1.5f * dt;
+            }
+            if(staminaRL > 0){
+                staminaRL -= 0.05f;
             }
         }else if ((!onHoldRL && onHoldLL) && IsKeyDown(KEY_W)){
             int add = std::fabs(Vector3DotProduct(Vector3Subtract(tempShoulders, grabPointLL), tempShoulders));
@@ -230,8 +236,19 @@ void Player::applyMovement(float dt){
             }else{
                 velocity.y += add * 1.5f * dt;
             }
+            if(staminaLL > 0){
+                staminaLL -= 0.05f;
+            }
         }
-
+        
+        if(onHoldRL && !onHoldLL){
+            staminaLL += 0.025f;
+        }
+        
+        if(!onHoldRL && onHoldLL){
+            staminaRL += 0.025f;
+        }
+        
         if(stretched && std::fabs(velocity.y) > 0){
             position = nextPos; 
         }

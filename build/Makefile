@@ -128,6 +128,30 @@ game/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/build
 .PHONY : game/fast
 
+src/button.obj: src/button.cpp.obj
+.PHONY : src/button.obj
+
+# target to build an object file
+src/button.cpp.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/src/button.cpp.obj
+.PHONY : src/button.cpp.obj
+
+src/button.i: src/button.cpp.i
+.PHONY : src/button.i
+
+# target to preprocess a source file
+src/button.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/src/button.cpp.i
+.PHONY : src/button.cpp.i
+
+src/button.s: src/button.cpp.s
+.PHONY : src/button.s
+
+# target to generate assembly for a file
+src/button.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/src/button.cpp.s
+.PHONY : src/button.cpp.s
+
 src/climbing.obj: src/climbing.cpp.obj
 .PHONY : src/climbing.obj
 
@@ -296,6 +320,30 @@ src/route.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/src/route.cpp.s
 .PHONY : src/route.cpp.s
 
+src/ui.obj: src/ui.cpp.obj
+.PHONY : src/ui.obj
+
+# target to build an object file
+src/ui.cpp.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/src/ui.cpp.obj
+.PHONY : src/ui.cpp.obj
+
+src/ui.i: src/ui.cpp.i
+.PHONY : src/ui.i
+
+# target to preprocess a source file
+src/ui.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/src/ui.cpp.i
+.PHONY : src/ui.cpp.i
+
+src/ui.s: src/ui.cpp.s
+.PHONY : src/ui.s
+
+# target to generate assembly for a file
+src/ui.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/src/ui.cpp.s
+.PHONY : src/ui.cpp.s
+
 # Help Target
 help:
 	@echo The following are some of the valid targets for this Makefile:
@@ -305,6 +353,9 @@ help:
 	@echo ... edit_cache
 	@echo ... rebuild_cache
 	@echo ... game
+	@echo ... src/button.obj
+	@echo ... src/button.i
+	@echo ... src/button.s
 	@echo ... src/climbing.obj
 	@echo ... src/climbing.i
 	@echo ... src/climbing.s
@@ -326,6 +377,9 @@ help:
 	@echo ... src/route.obj
 	@echo ... src/route.i
 	@echo ... src/route.s
+	@echo ... src/ui.obj
+	@echo ... src/ui.i
+	@echo ... src/ui.s
 .PHONY : help
 
 
