@@ -33,6 +33,8 @@ Cube Climbing::generateWallFromFile(std::string map_file){
         wall.height = data["wall"]["height"];
         wall.length = data["wall"]["length"];
         
+        
+        wall.rappPosition = (Vector3){data["rapp"]["rappX"], data["rapp"]["rappY"], data["rapp"]["rappZ"]};
 
         wall.generateRoutesFromFile(map_file);
 
@@ -55,17 +57,20 @@ Cube Climbing::generateWall(){
     float l = std::fabs(dist(gen));
     
     std::uniform_int_distribution<> r(1, l/4);
-    
+    std::uniform_real_distribution<float> distw(3.5f, 8.0f);
+
     int num = r(gen);
     //std::cout << num << '\n';
     Cube wall;
     
     wall.position = (Vector3){-dist(gen), h/2, dist(gen)/10};
-    wall.width = 1.0f;
+    wall.width = 1.0f + distw(gen);
     wall.height = h;
     wall.length = l;
     wall.color = GRAY;
     
+    wall.rappPosition = (Vector3){wall.position.x - wall.width/2.0f, wall.height, wall.position.z};
+
     for(int i = 0; i < num; i++){
         wall.generateRoute();
     }

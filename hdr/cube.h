@@ -16,9 +16,13 @@ class Route;
 class Cube{
 public:
     Vector3 position;
+    
+    Vector3 rappPosition;
+
     float width, height, length;
     Color color;
 
+    
 
     std::vector<Route> routes;
     
@@ -32,6 +36,10 @@ public:
     BoundingBox getBoundingBox();
 
     bool setChunks();
+    
+
+
+
 };
 
 #endif

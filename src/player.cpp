@@ -60,22 +60,23 @@ void Player::applyCollision(float dt, Cube& wall){
             velocity.y = 5.0f;
             isGrounded = false;
         }else{
-            velocity.y -= 9.8f * dt;
-            position.y += velocity.y * dt;
+            if(isRappelling == false){
+                velocity.y -= 9.8f * dt;
+                position.y += velocity.y * dt;
 
-            if(position.y <= 1.8f + wall.height){
-                position.y = 1.8f + wall.height;
-                velocity.y = 0;
-                isGrounded = true;
+                if(position.y <= 1.8f + wall.height){
+                    position.y = 1.8f + wall.height;
+                    velocity.y = 0;
+                    isGrounded = true;
+                }
             }
         }
-
     }else{
         isGrounded = false;
         isTopped = false;
     }
 
-    if(!onHold && isGrounded == false){
+    if(isRappelling == false && !onHold && isGrounded == false){
         velocity.y -= 9.8f * dt;
         position.y += velocity.y * dt;
             
@@ -85,6 +86,7 @@ void Player::applyCollision(float dt, Cube& wall){
             isGrounded = true;
         }
     }
+
 }
 
 void Player::applyMovement(float dt){
@@ -262,6 +264,29 @@ void Player::applyMovement(float dt){
     }
 }
 
+void Player::applyMovementRappelling(float dt){
+    prevPos = position;
+    Vector3 forwardFlat = Vector3Normalize({forward.x, 0, forward.z});
+    Vector3 right = Vector3Normalize(Vector3CrossProduct(forwardFlat, {0,1,0}));
+
+    Vector3 moveDir = {0,0,0};
+      
+    nextPos = prevPos;
+    
+    if(IsKeyDown(KEY_SPACE)){
+        moveDir = Vector3Subtract(moveDir, {0,1,0});   
+        moveDir = Vector3Normalize(moveDir);
+        nextPos = Vector3Add(prevPos, Vector3Scale(moveDir, 5.0f * dt));
+        position = nextPos;
+    }
+    
+    if(position.y <= 1.8f){
+        position.y = 1.8f;
+        isRappelling = false;
+    }
+
+}
+
 void Player::update(float dt){
     
     Vector2 mouseDelta = GetMouseDelta();
@@ -284,4 +309,23 @@ void Player::update(float dt){
     camera.position = position;
     camera.target = Vector3Add(position, forward);
     shoulders = {position.x, position.y - 0.3f, position.z};
+}
+
+void Player::takeToTheTop(Cube& wall){
+
+    position.x = wall.position.x;
+    position.y = wall.height + 1.8f;
+    position.z = wall.position.z;
+    
+
+}
+
+void Player::rappDown(Cube& wall){
+    
+    float dt = GetFrameTime();
+    position.x = wall.position.x - wall.width - 0.5f;
+    isRappelling = true;
+    
+    isGrounded = false;
+
 }

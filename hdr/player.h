@@ -44,11 +44,13 @@ public:
     bool createMap = false;
     bool loadMap = false;
 
+    bool isRappelling = false;
 
     Vector3 grabPointLA;
     Vector3 grabPointRA; 
     Vector3 grabPointRL;
     Vector3 grabPointLL;
+    
 
     Vector3 forward; 
     Vector3 position;
@@ -65,8 +67,14 @@ public:
     Player();
     void update(float dt);
     void applyMovement(float dt);
+    void applyMovementRappelling(float dt);
     void applyCollision(float dt, Cube& wall);
     BoundingBox MakeBox(Vector3 pos, float halfSize);
+
+    
+    void takeToTheTop(Cube& wall);
+    void rappDown(Cube& wall);      
+
 };
 
 #endif

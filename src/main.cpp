@@ -141,7 +141,7 @@ int main(void){
 
     DisableCursor();
 
-    SetTargetFPS(60);
+    SetTargetFPS(85);
 
     Shader shader = LoadShader(TextFormat("res/shaders/normalmap.vs", GLSL_VERSION),
                                TextFormat("res/shaders/normalmap.fs", GLSL_VERSION));
@@ -188,7 +188,7 @@ int main(void){
                             player.createMap = true;
                         }
 
-                    } break;
+                    } break;    
                 }
             } break;
             
@@ -214,7 +214,12 @@ int main(void){
                         {"wallZ", wall.position.z}
                     };
                     
-                    
+                    jsonObj["rapp"] = {
+                        {"rappX", wall.rappPosition.x},
+                        {"rappY", wall.rappPosition.y},
+                        {"rappZ", wall.rappPosition.z}
+                    };
+
                     jsonObj["routes"] = json::array();
 
                     for (const auto& route : wall.routes) {
@@ -231,7 +236,9 @@ int main(void){
 
                         jsonObj["routes"].push_back(routeJson);
                     }
+                    
 
+                    
     
                     player.createMap = false;         
                    
@@ -247,16 +254,29 @@ int main(void){
                     }
  
                 }
+               
+                if(IsKeyPressed(KEY_T)){
+                    player.takeToTheTop(wall);
+                }
                 
+                if(IsKeyPressed(KEY_E) && Vector3Distance(player.position, wall.rappPosition) <= 3.0f){
+                    player.rappDown(wall);
+                }
+
                 float dt = GetFrameTime();
         
                 Vector3 prevPos = player.position;
                 Vector3 prevVel = player.velocity;
         
                 if(ui.mapIsClosed == true){
+                    
                     player.update(dt);
+                    if(player.isRappelling == false){
+                        player.applyMovement(dt);
+                    }else{
+                        player.applyMovementRappelling(dt);
+                    }
                     DisableCursor();
-                    player.applyMovement(dt);
                     player.applyCollision(dt, wall);
                 }else{
                     ShowCursor();
@@ -330,6 +350,9 @@ int main(void){
                 
                 case Screen::GAME:{
                     ClearBackground(WHITE);
+
+                    
+
                     float lightPos[3] = {lightPosition.x, lightPosition.y, lightPosition.z};
                     SetShaderValue(shader, lightPosLoc, lightPos, SHADER_UNIFORM_VEC3);
                     float camPos[3] = {camera.position.x, camera.position.y, camera.position.z};
@@ -354,7 +377,9 @@ int main(void){
  
                     
                     wall.draw();
-                   
+                    
+                    DrawCube(wall.rappPosition, 1.0f, 1.0f, 1.0f, PINK); 
+
                     //std::cout << "routes: " << wall.routes.size() << '\n';
                     for(int i = 0; i < wall.routes.size(); i++){
                         //std::cout << "hold position to check 2: " << wall.routes[0].holds_route[0].position.x << '\n'; 
