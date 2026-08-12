@@ -33,7 +33,6 @@ Cube Climbing::generateWallFromFile(std::string map_file){
         wall.height = data["wall"]["height"];
         wall.length = data["wall"]["length"];
         
-        
         wall.rappPosition = (Vector3){data["rapp"]["rappX"], data["rapp"]["rappY"], data["rapp"]["rappZ"]};
 
         wall.generateRoutesFromFile(map_file);
@@ -50,14 +49,15 @@ Cube Climbing::generateWall(){
         
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_real_distribution<float> dist(10.0f, 100.0f);
+    std::uniform_real_distribution<float> dist(10.0f, 20.0f);
     
+    std::uniform_real_distribution<float> dim(25.0f, 100.0f);
 
-    float h = std::fabs(dist(gen));
-    float l = std::fabs(dist(gen));
+    float h = std::fabs(dim(gen));
+    float l = std::fabs(dim(gen));
     
     std::uniform_int_distribution<> r(1, l/4);
-    std::uniform_real_distribution<float> distw(3.5f, 8.0f);
+    std::uniform_real_distribution<float> distw(5.5f, 12.0f);
 
     int num = r(gen);
     //std::cout << num << '\n';
@@ -69,12 +69,23 @@ Cube Climbing::generateWall(){
     wall.length = l;
     wall.color = GRAY;
     
-    wall.rappPosition = (Vector3){wall.position.x - wall.width/2.0f, wall.height, wall.position.z};
+    Mesh wallMesh = GenMeshCube(wall.width, h, l);
+    
+    Model modelTemp = LoadModelFromMesh(wallMesh);
+
+    modelTemp.materials[0].maps[MATERIAL_MAP_ROUGHNESS].value = 0.5f;
+
+    wall.wallModel = modelTemp;
+
+
+    wall.rappPosition = (Vector3){wall.position.x + wall.width/2.0f, wall.height, wall.position.z};
 
     for(int i = 0; i < num; i++){
         wall.generateRoute();
     }
     
+    isGenerated = true;
+
     //std::cout << "wall position: " << wall.position.x << '\n' << wall.position.y << '\n' << wall.position.z << '\n';
     return wall;
     

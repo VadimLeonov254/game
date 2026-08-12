@@ -17,6 +17,10 @@
 #include<string>
 #include<vector>
 #include "button.h"
+#include "rlights.h"
+#include "chrono"
+#include "thread"
+
 
 using json = nlohmann::json;
 
@@ -50,9 +54,19 @@ enum class Menu{
 
 };
 
+
+enum class Pause{
+
+    SETTINGS
+
+};
+
 namespace fs = std::filesystem;
+using namespace std::chrono_literals;
+
 
 static Image LoadImageSVG(const char *fileName, int width, int height);
+std::string generateMap(Player& player, Cube& wall, Climbing& climbing);
 int main(void){
     
     fs::path maps_folder = "maps";
@@ -75,10 +89,15 @@ int main(void){
     SetConfigFlags(FLAG_WINDOW_TOPMOST | FLAG_WINDOW_UNDECORATED | FLAG_MSAA_4X_HINT);
     InitWindow(GetMonitorWidth(0), GetMonitorHeight(0), "the_climb"); 
     
+    SetExitKey(0); 
+    bool closeGame = false;
+
     Screen CurrentScreen = Screen::MENU;
     
     Menu CurrentMenu = Menu::MAIN;
     
+    Pause CurrentPause = Pause::SETTINGS;
+
     Image imageLogo = LoadImageSVG("res/RCKCLMB.svg", 600, 300);
 
     Texture2D logo = LoadTextureFromImage(imageLogo);
@@ -90,7 +109,12 @@ int main(void){
     Button NewGameButton = Button(GetScreenWidth() * 0.1f, GetScreenHeight() * 0.05f, GetScreenWidth() * 0.45f, GetScreenHeight() * 0.3f, WHITE);
     
     Button BackButton = Button(GetScreenWidth() * 0.1f, GetScreenHeight() * 0.05f, GetScreenWidth() * 0.055f, GetScreenWidth() * 0.055f, WHITE);
-   
+    
+    Button ContinueButton = Button(GetScreenWidth() * 0.1f, GetScreenHeight() * 0.05f, GetScreenWidth() * 0.45f, GetScreenHeight() * 0.3f, WHITE);
+    
+    Button SaveAndExitButton = Button(GetScreenWidth() * 0.1f, GetScreenHeight() * 0.05f, GetScreenWidth() * 0.45f, GetScreenHeight() * 0.3f, WHITE);
+
+    
     for(int i = 0; i < map_files.size(); i++){
         Button button = Button(GetScreenWidth() * 0.1f, GetScreenHeight() * 0.05f, GetScreenWidth() * 0.45f, GetScreenHeight() * 0.4f + GetScreenHeight() * 0.06f*i, WHITE);
         Button closeButton = Button(GetScreenHeight() * 0.05f, GetScreenHeight() * 0.05f, button.width + GetScreenWidth() * 0.45f, GetScreenHeight() * 0.4f + GetScreenHeight() * 0.06f*i, (Color){179, 0, 0, 255});
@@ -98,6 +122,8 @@ int main(void){
         mapButtons.push_back(button);
         mapCloseButtons.push_back(closeButton);
     }
+    
+    int lastMapSize = map_files.size();
 
     int currSeed;    
 
@@ -136,7 +162,8 @@ int main(void){
     Camera camera = player.camera;
 
     int cameraMode = CAMERA_FIRST_PERSON;
-
+    
+    
     env.LoadSkybox("res/skybox.png");
 
     DisableCursor();
@@ -149,10 +176,13 @@ int main(void){
     shader.locs[SHADER_LOC_MAP_NORMAL] = GetShaderLocation(shader, "normalMap");
     shader.locs[SHADER_LOC_VECTOR_VIEW] = GetShaderLocation(shader, "viewPos");
 
+    
+    env.LoadGround(shader);
+    
+    std::string currMap;
+
     Vector3 lightPosition = { 10.0f, 10.0f, -10.0f };
     int lightPosLoc = GetShaderLocation(shader, "lightPos");    
-
-    env.LoadGround(shader);
 
     float specularExponent = 1.0f;
     int specularExponentLoc = GetShaderLocation(shader, "specularExponent");
@@ -164,10 +194,17 @@ int main(void){
     
     json jsonObj;
     
-    while(!WindowShouldClose()){
+    bool justSwitched = false;
+
+    while(!closeGame){
         
+        if(IsKeyDown(KEY_LEFT_ALT) && IsKeyDown(KEY_F4)){
+            closeGame = true;
+        }
+
         switch(CurrentScreen){
             case Screen::MENU:{
+                
                 
                 ShowCursor();
                 switch(CurrentMenu){
@@ -178,14 +215,40 @@ int main(void){
                     } break;
                     
                     case Menu::MAPS:{
+                       /* 
+                        if(fs::exists("maps") && fs::is_directory("maps") && !fs::is_empty("maps")){
+                            for(auto& entry : fs::directory_iterator("maps")){
+                                map_files.push_back(entry);
+                            }
+                        }else{
+                            std::cerr << "Directory does not exist." << std::endl;
+                        }
+                       */
+                       /* 
+                        if(justSwitched == true){
+                            std::this_thread::sleep_for(1000ms);
+                        }
+                
+                        justSwitched = false;
+                        */
                         
                         if(BackButton.isClicked()){
                             CurrentMenu = Menu::MAIN;
                         }
 
+                        std::cout << map_files.size() << '\n';
                         if(NewGameButton.isClicked()){
-                            CurrentScreen = Screen::GAME;
                             player.createMap = true;
+                            currMap = generateMap(player, wall, climbing);
+                            fs::directory_entry map_entry{"maps/" + currMap};
+                            map_files.push_back(map_entry);
+                            Button button = Button(GetScreenWidth() * 0.1f, GetScreenHeight() * 0.05f, GetScreenWidth() * 0.45f, GetScreenHeight() * 0.4f + GetScreenHeight() * 0.06f * (map_files.size()-1), WHITE);
+                            Button closeButton = Button(GetScreenHeight() * 0.05f, GetScreenHeight() * 0.05f, button.width + GetScreenWidth() * 0.45f, GetScreenHeight() * 0.4f + GetScreenHeight() * 0.06f * (map_files.size() - 1), (Color){179, 0, 0, 255});
+        
+                            mapButtons.push_back(button);
+                            mapCloseButtons.push_back(closeButton);
+
+                            CurrentScreen = Screen::GAME;
                         }
 
                     } break;    
@@ -193,73 +256,16 @@ int main(void){
             } break;
             
             case Screen::GAME:{
-
-                if(player.createMap == true){
-                    //std::cout << "just spawned" << '\n';
-                    wall = climbing.generateWall();
-                    
-                    isSet = wall.setChunks();
-                    //std::cout << "well" << '\n';
-                    player.isTopped = false;
-                    
-                    //std::cout << wall.chunks.size() << '\n';
-                    
-                    //std::cout << wall.routes.size() << '\n';
-                    jsonObj["wall"] = {
-                        {"width", wall.width},
-                        {"height", wall.height},
-                        {"length", wall.length},
-                        {"wallX", wall.position.x},
-                        {"wallY", wall.position.y},
-                        {"wallZ", wall.position.z}
-                    };
-                    
-                    jsonObj["rapp"] = {
-                        {"rappX", wall.rappPosition.x},
-                        {"rappY", wall.rappPosition.y},
-                        {"rappZ", wall.rappPosition.z}
-                    };
-
-                    jsonObj["routes"] = json::array();
-
-                    for (const auto& route : wall.routes) {
-                        json routeJson;
-                        routeJson["holds"] = json::array();
-
-                        for (const auto& hold : route.holds_route) {
-                            routeJson["holds"].push_back({
-                                {"holdX", hold.position.x},
-                                {"holdY", hold.position.y},
-                                {"holdZ", hold.position.z}
-                            });
-                        }
-
-                        jsonObj["routes"].push_back(routeJson);
-                    }
-                    
-
-                    
-    
-                    player.createMap = false;         
-                   
-                    std::uniform_int_distribution<int> seed(1,10000);
-                    
-                    currSeed = seed(gen);
-                    std::string currSeedStr = "maps/wall_" + std::to_string(currSeed) + ".json";
-
-                    std::ofstream file(currSeedStr);
-                    if(file.is_open()) {
-                        file << jsonObj.dump(4);
-                        file.close();
-                    }
- 
+                
+                if(IsKeyPressed(KEY_ESCAPE)){
+                    CurrentScreen = Screen::PAUSE;            
                 }
-               
+
                 if(IsKeyPressed(KEY_T)){
                     player.takeToTheTop(wall);
                 }
                 
-                if(IsKeyPressed(KEY_E) && Vector3Distance(player.position, wall.rappPosition) <= 3.0f){
+                if(IsKeyPressed(KEY_F) && Vector3Distance(player.position, wall.rappPosition) <= 3.0f){
                     player.rappDown(wall);
                 }
 
@@ -275,6 +281,11 @@ int main(void){
                         player.applyMovement(dt);
                     }else{
                         player.applyMovementRappelling(dt);
+                        /*
+                        if(player.position.y == wall.height/2.0f){
+                            generateWall(player, wall, climbing);
+                        }
+                        */
                     }
                     DisableCursor();
                     player.applyCollision(dt, wall);
@@ -288,8 +299,21 @@ int main(void){
                 //std::cout << "hold position to check: " << wall.routes[0].holds_route[0].position.x << '\n'; 
             } break;
 
-        }
+            case Screen::PAUSE:{
+                
+                ShowCursor();
+                if(IsKeyPressed(KEY_ESCAPE) || ContinueButton.isClicked()){
+                    CurrentScreen = Screen::GAME;
+                }
+                
+                if(SaveAndExitButton.isClicked()){
+                    player.savePlayerToFile(currMap);
+                    justSwitched = true;
+                    CurrentScreen = Screen::MENU;
+                }
 
+            } break;
+        }
         
         BeginDrawing();
         
@@ -307,7 +331,6 @@ int main(void){
                     switch(CurrentMenu){
                         case Menu::MAIN:{
                             StartButton.drawButtonText(50.0f, font, "Play", "center", "center", BLACK);
-                            //DrawTextEx(font, "Play", (Vector2){GameButton.x, GameButton.y}, 50.0f, 1.0f, BLACK);
                         } break;
 
                         case Menu::MAPS:{
@@ -322,8 +345,9 @@ int main(void){
 
                                         if(mapButtons[i].isClicked()){
                                             //std::cout << map_files[i].path().filename().string().c_str() << '\n';
-
-                                            wall = climbing.generateWallFromFile(map_files[i].path().filename().string().c_str());
+                                            currMap = map_files[i].path().filename().string().c_str();
+                                            player.loadPlayerFromFile(currMap);
+                                            wall = climbing.generateWallFromFile(currMap);
                                             isSet = wall.setChunks();
                                             CurrentScreen = Screen::GAME;
                                         }
@@ -351,8 +375,6 @@ int main(void){
                 case Screen::GAME:{
                     ClearBackground(WHITE);
 
-                    
-
                     float lightPos[3] = {lightPosition.x, lightPosition.y, lightPosition.z};
                     SetShaderValue(shader, lightPosLoc, lightPos, SHADER_UNIFORM_VEC3);
                     float camPos[3] = {camera.position.x, camera.position.y, camera.position.z};
@@ -378,7 +400,6 @@ int main(void){
                     
                     wall.draw();
                     
-                    DrawCube(wall.rappPosition, 1.0f, 1.0f, 1.0f, PINK); 
 
                     //std::cout << "routes: " << wall.routes.size() << '\n';
                     for(int i = 0; i < wall.routes.size(); i++){
@@ -389,6 +410,7 @@ int main(void){
                         }
                     }
                     
+                    DrawCube(wall.rappPosition, 1.0f, 1.0f, 1.0f, PINK); 
                     climbing.drawLimbs(player);
 
                     EndMode3D();
@@ -404,6 +426,15 @@ int main(void){
                     ui.drawMap(wall);  
                     
                 } break;
+                
+                case Screen::PAUSE:{
+                    ClearBackground(BLACK);
+
+                    ContinueButton.drawButtonText(45.0f, font, "Continue", "center", "center", BLACK);                    
+                    SaveAndExitButton.drawButtonText(35.0f, font, "Save & Exit", "center", "center", BLACK);
+
+
+                } break;
 
             }
            
@@ -413,6 +444,111 @@ int main(void){
     
 
     CloseWindow();
+}
+
+std::string generateMap(Player& player, Cube& wall, Climbing& climbing){
+    
+    int currSeed;
+        
+    std::random_device rd;
+
+    std::mt19937 gen(rd());
+    
+    json jsonObj;
+    
+    bool isSet;
+
+    std::string currMap;
+
+    if(player.createMap == true){
+        //std::cout << "just spawned" << '\n';
+        wall = climbing.generateWall();
+                    
+        isSet = wall.setChunks();
+        //std::cout << "well" << '\n';
+        player.isTopped = false;
+                    
+        //std::cout << wall.chunks.size() << '\n';
+                    
+        //std::cout << wall.routes.size() << '\n';
+        jsonObj["wall"] = {
+            {"width", wall.width},
+            {"height", wall.height},
+            {"length", wall.length},
+            {"wallX", wall.position.x},
+            {"wallY", wall.position.y},
+            {"wallZ", wall.position.z}
+        };
+                    
+        jsonObj["rapp"] = {
+            {"rappX", wall.rappPosition.x},
+            {"rappY", wall.rappPosition.y},
+            {"rappZ", wall.rappPosition.z}
+        };
+        
+        jsonObj["player"] = {
+            
+            {"x", player.position.x},
+            {"y", player.position.y},
+            {"z", player.position.z},
+            
+            {"onHoldLA", 0},
+            {"xLA", 0.0f},
+            {"yLA", 0.0f},
+            {"zLA", 0.0f},
+
+            {"onHoldRA", 0},
+            {"xRA", 0.0f},
+            {"yRA", 0.0f},
+            {"zRA", 0.0f},
+
+            {"onHoldLL", 0},
+            {"xLL", 0.0f},
+            {"yLL", 0.0f},
+            {"zLL", 0.0f},
+
+            {"onHoldRL", 0},
+            {"xRL", 0.0f},
+            {"yRL", 0.0f},
+            {"zRL", 0.0f},
+
+        };
+
+        jsonObj["routes"] = json::array();
+
+        for (const auto& route : wall.routes) {
+            json routeJson;
+            routeJson["holds"] = json::array();
+
+            for (const auto& hold : route.holds_route) {
+                routeJson["holds"].push_back({
+                    {"holdX", hold.position.x},
+                    {"holdY", hold.position.y},
+                    {"holdZ", hold.position.z}
+                });
+            }
+
+            jsonObj["routes"].push_back(routeJson);
+        }
+                    
+        player.createMap = false;         
+                
+        std::uniform_int_distribution<int> seed(1,10000);
+                    
+        currSeed = seed(gen);
+        std::string currSeedStr = "maps/wall_" + std::to_string(currSeed) + ".json";
+        
+        currMap = "wall_" + std::to_string(currSeed) + ".json";
+
+
+        std::ofstream file(currSeedStr);
+        if(file.is_open()) {
+            file << jsonObj.dump(4);
+            file.close();
+        }
+    }
+
+    return currMap;
 }
 
 static Image LoadImageSVG(const char *fileName, int width, int height)

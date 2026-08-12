@@ -3,6 +3,11 @@
 #include "raymath.h"
 #include "player.h"
 #include<cmath>
+#include "json.hpp"
+#include "filesystem"
+#include<fstream>
+
+using json = nlohmann::json;
 
 Player::Player() {
     position = {0.0f, 1.8f, 4.0f};
@@ -19,6 +24,125 @@ BoundingBox Player::MakeBox(Vector3 pos, float halfSize){
         (Vector3){ pos.x - halfSize, pos.y - halfSize, pos.z - halfSize },
         (Vector3){ pos.x + halfSize, pos.y + halfSize, pos.z + halfSize }
     };
+}
+
+void Player::loadPlayerFromFile(std::string map_file){
+    
+    map_file = "maps/" + map_file;
+    std::ifstream file(map_file);
+
+    if(!file.is_open()){
+        std::cerr << "Could not open the file" << '\n';
+    }
+    
+    json data = json::parse(file);
+    
+    try{
+        position = (Vector3){data["player"]["x"], data["player"]["y"], data["player"]["z"]};
+        
+        if(data["onHoldLA"] == 1){
+            onHoldLA = true;
+        }else{
+            onHoldLA = false;
+        }
+
+        if(data["onHoldRA"] == 1){
+            onHoldRA = true;
+        }else{
+            onHoldRA = false;
+        }
+
+        if(data["onHoldLL"] == 1){
+            onHoldLL = true;
+        }else{
+            onHoldLL = false;
+        }
+
+        if(data["onHoldRL"] == 1){
+            onHoldRL = true;
+        }else{
+            onHoldRL = false;
+        }
+
+        grabPointLA = (Vector3){data["player"]["xLA"], data["player"]["yLA"], data["player"]["zLA"]};
+        grabPointRA = (Vector3){data["player"]["xRA"], data["player"]["yRA"], data["player"]["zRA"]};
+        grabPointLL = (Vector3){data["player"]["xLL"], data["player"]["yLL"], data["player"]["zLL"]};
+        grabPointRL = (Vector3){data["player"]["xRL"], data["player"]["yRL"], data["player"]["zRL"]};
+
+    }catch(const json::parse_error& e){
+        std::cerr << "parse error" << e.what() << '\n';
+    }
+    
+    if(file.is_open()){
+        file.close();
+    }
+
+}
+
+void Player::savePlayerToFile(std::string map_file){
+    
+    map_file = "maps/" + map_file;
+    std::ifstream file(map_file);
+
+    if(!file.is_open()){
+        std::cerr << "Could not open the file" << '\n';
+    }
+
+    json data = json::parse(file);
+
+    try{
+    
+    data["player"]["x"] = position.x;
+    data["player"]["y"] = position.y;
+    data["player"]["z"] = position.z;
+
+    if(onHoldLA == true){
+        data["player"]["onHoldLA"] = 1;
+    }else{
+        data["player"]["onHoldLA"] = 0;
+    }
+
+    if(onHoldRA == true){
+        data["player"]["onHoldRA"] = 1;
+    }else{
+        data["player"]["onHoldRA"] = 0;
+    }
+
+    if(onHoldLL == true){
+        data["player"]["onHoldLL"] = 1;
+    }else{
+        data["player"]["onHoldLL"] = 0;
+    }
+
+    if(onHoldRL == true){
+        data["player"]["onHoldRL"] = 1;
+    }else{
+        data["player"]["onHoldRL"] = 0;
+    }
+
+    data["player"]["xLA"] = grabPointLA.x;
+    data["player"]["yLA"] = grabPointLA.y;
+    data["player"]["zLA"] = grabPointLA.z;
+
+    data["player"]["xRA"] = grabPointRA.x;
+    data["player"]["yRA"] = grabPointRA.y;
+    data["player"]["zRA"] = grabPointRA.z;
+    
+    data["player"]["xLL"] = grabPointLL.x;
+    data["player"]["yLL"] = grabPointLL.y;
+    data["player"]["zLL"] = grabPointLL.z;
+    
+    data["player"]["xRL"] = grabPointRL.x;
+    data["player"]["yRL"] = grabPointRL.y;
+    data["player"]["zRL"] = grabPointRL.z;
+
+    }catch(const json::parse_error& e){
+        std::cerr << "parse error" << e.what() << '\n';
+    }
+
+    if(file.is_open()){
+        file.close();
+    }
 }
 
 void Player::applyCollision(float dt, Cube& wall){
@@ -323,9 +447,10 @@ void Player::takeToTheTop(Cube& wall){
 void Player::rappDown(Cube& wall){
     
     float dt = GetFrameTime();
-    position.x = wall.position.x - wall.width - 0.5f;
+    position.x = wall.position.x + wall.width + 0.5f;
     isRappelling = true;
     
     isGrounded = false;
+    
 
 }

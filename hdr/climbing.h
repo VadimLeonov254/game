@@ -23,6 +23,8 @@ public:
     void update(Player& player, std::vector<Chunk>& chunk);
     void drawLimbs(Player& player);
     
+    bool isGenerated = false;
+
     std::vector<Hold> holds;
 
     Cube generateWall();

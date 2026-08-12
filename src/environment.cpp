@@ -46,14 +46,18 @@ void Environment::LoadGround(Shader& shader){
     ground.materials[0].shader = shader;
     ground.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = LoadTexture("res/green.png");
     ground.materials[0].maps[MATERIAL_MAP_NORMAL].texture = LoadTexture("res/grass_normal.png");
-
+    
+    
     GenTextureMipmaps(&ground.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture);
     GenTextureMipmaps(&ground.materials[0].maps[MATERIAL_MAP_NORMAL].texture);
 
     SetTextureFilter(ground.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_TRILINEAR);
     SetTextureFilter(ground.materials[0].maps[MATERIAL_MAP_NORMAL].texture, TEXTURE_FILTER_TRILINEAR);
 
-    Vector3 *vertices = (Vector3 *)meshGround.vertices;
+
+    ground.materials[0].maps[MATERIAL_MAP_METALNESS].value = 0.5f;
+
+/*    Vector3 *vertices = (Vector3 *)meshGround.vertices;
     
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -65,5 +69,5 @@ void Environment::LoadGround(Shader& shader){
     }
 
     UpdateMeshBuffer(meshGround, 0, meshGround.vertices, meshGround.vertexCount * 3 * sizeof(float), 0);
-
+*/
 }

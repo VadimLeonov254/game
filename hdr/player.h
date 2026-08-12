@@ -74,6 +74,9 @@ public:
     
     void takeToTheTop(Cube& wall);
     void rappDown(Cube& wall);      
+    
+    void savePlayerToFile(std::string map_file);
+    void loadPlayerFromFile(std::string map_file); 
 
 };
 

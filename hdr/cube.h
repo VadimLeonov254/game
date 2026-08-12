@@ -19,10 +19,10 @@ public:
     
     Vector3 rappPosition;
 
+    Model wallModel;
+
     float width, height, length;
     Color color;
-
-    
 
     std::vector<Route> routes;
     
@@ -37,8 +37,6 @@ public:
 
     bool setChunks();
     
-
-
 
 };
 
