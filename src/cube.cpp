@@ -16,7 +16,10 @@ using json = nlohmann::json;
 namespace fs = std::filesystem;
 
 void Cube::draw(){
-    DrawCube(position, width, height, length, color);
+
+    //BeginShaderMode(shader);
+        DrawModel(wallModel, position, 1.0f, WHITE);
+    //EndShaderMode();
 }
 
 void Cube::generateRoutesFromFile(std::string map_file){
@@ -29,6 +32,7 @@ void Cube::generateRoutesFromFile(std::string map_file){
     }
     
     std::vector<Hold> holds;
+    
 
     json data = json::parse(file);
 
@@ -39,16 +43,27 @@ void Cube::generateRoutesFromFile(std::string map_file){
                 holds.clear();
             }
             for(const auto& hold : routefile["holds"]){
-                holds.push_back(Hold(position, (Vector3){(float)hold["holdX"], (float)hold["holdY"] - position.y, (float)hold["holdZ"] - position.z}, LIGHTGRAY));
+                Hold h = Hold(position, (Vector3){(float)hold["holdX"], (float)hold["holdY"] - position.y, (float)hold["holdZ"] - position.z}, LIGHTGRAY);
+                holds.push_back(h);
             }
 
             Route route(holds);
 
-            routes.push_back(route.holds_route);
+            routes.push_back(route);
     
             for(int i = 0; i < holds.size(); i++){
                 holds[i].parentRoute = std::make_shared<Route>(route);
             }
+        }
+        
+        for(const auto& hold : data["AdditionalHolds"]){
+            if(additionalHolds.size() > 0){
+                additionalHolds.clear();
+            }
+            
+            Hold h = Hold(position, (Vector3){(float)hold["holdX"], (float)hold["holdY"] - position.y, (float)hold["holdZ"] - position.z}, LIGHTGRAY);
+            additionalHolds.push_back(h);
+
         }
 
     }catch(const json::parse_error& e){
@@ -58,6 +73,8 @@ void Cube::generateRoutesFromFile(std::string map_file){
 }
 
 void Cube::generateRoute(){
+    
+    int outOfBound = 0;
 
     float maxDist = 0.0f;
 
@@ -68,58 +85,85 @@ void Cube::generateRoute(){
 
     float margin = 0.5f;
 
-    std::uniform_real_distribution<float> distZ(-1.0f, 1.0f);
-    std::uniform_real_distribution<float> distY(0.3f, 1.0f);
-    
+    std::uniform_real_distribution<float> distZ(-1.3f, 1.3f);
+    std::uniform_real_distribution<float> distY(0.5f, 1.3f);
+   
+    std::uniform_real_distribution<float> distAddY(-0.5f, 1.3f);
+
     std::uniform_real_distribution<float> distR(-1.3f, 1.3f);
     
-    std::uniform_real_distribution<float> distW(-length/2.1f, length/2.1f);
+    std::uniform_real_distribution<float> distW(-length/2.0f, length/2.0f);
 
     std::uniform_int_distribution<int> distS(1,2);
     
 
-    Vector3 lastPos = {position.x + width/2, -height/2, distW(gen)};
+    Vector3 lastPos = {position.x - width/2, -height/2, position.z + distW(gen)};
     
     while(lastPos.y < height/2){        
-        Vector3 newPos = {position.x + width/2, lastPos.y + distY(gen), lastPos.z + distZ(gen)};
+        Vector3 newPos = {position.x - width/2, lastPos.y + distY(gen), lastPos.z + distZ(gen)};
         
         float disp = distR(gen);
         int diss = distS(gen);
 
-        
-        if(newPos.z > length/2){
-            newPos.z = length/2 - 3;
+        if(maxDist < Vector3Distance(newPos, lastPos)){
+            maxDist = Vector3Distance(newPos, lastPos);
         }
-        if(newPos.z < -length/2){
-            newPos.z = -length/2 + 3;
-        }
-        
-        maxDist = std::max(maxDist, Vector3Distance(newPos, lastPos))/10;
 
         lastPos = newPos;
+        
+        Color col;        
 
-        if(lastPos.y <= height/2){
+        if(lastPos.y + 0.2f <= height/2){
+
+            if(lastPos.z >= length/2 - 0.1f){
+                lastPos.z -= 2*(lastPos.z - length/2) + 0.2f;
+            }
+            
+            if(lastPos.z <= -length/2 + 0.1f){
+                lastPos.z += 2*(-length/2 - lastPos.z) + 0.2f;
+            }
+
             Hold h = Hold(position, lastPos, LIGHTGRAY);
             holds.push_back(h);
-            if(disp < height/2 && diss == 2){
-                holds.push_back(Hold(position, (Vector3){lastPos.x, lastPos.y + disp, lastPos.z + disp}, LIGHTGRAY));
-                holds.push_back(Hold(position, (Vector3){lastPos.x, lastPos.y + disp, lastPos.z + disp}, LIGHTGRAY));
-            }
         }
+
+        Vector3 addPos = {lastPos.x, lastPos.y + distAddY(gen), lastPos.z + distZ(gen)};
+
+        if(addPos.y + 0.2f <= height/2){
+
+            if(addPos.z >= length/2 - 0.1f){
+                addPos.z -= 2*(addPos.z - length/2) + 0.2f;
+            }
+            
+            if(addPos.z <= -length/2 + 0.1f){
+                addPos.z += 2*(-length/2 - addPos.z) + 0.2f;
+            }
+
+            Hold h = Hold(position, addPos, LIGHTGRAY);
+            additionalHolds.push_back(h);
+        }
+        
+
     }
     
     //std::cout << "all good" << '\n';
 
     Route route(holds);
+   
+    route.grade = maxDist;
+    
+    std::cout << "weeell " << route.grade << '\n';
 
-    routes.push_back(route.holds_route);
+    std::cout << outOfBound << '\n';
+
+    routes.push_back(route);
     
     for(int i = 0; i < holds.size(); i++){
         holds[i].parentRoute = std::make_shared<Route>(route);
     }
     
     //std::cout << "cooked" << '\n';
-
+        
 }
 
 bool Cube::setChunks(){
@@ -128,9 +172,14 @@ bool Cube::setChunks(){
         std::vector<Hold> temp;
         for(int i = 0; i < routes.size(); i++){
             for(int j = 0; j < routes[i].holds_route.size(); j++){
-                if(routes[i].holds_route[j].position.y >= 10.0f*(k-1) && routes[i].holds_route[j].getWorldPosition().y < 10.0f*k){
+                if(routes[i].holds_route[j].position.y >= 10.0f*(k-1) && routes[i].holds_route[j].position.y < 10.0f*k){
                     temp.push_back(routes[i].holds_route[j]);
                 }
+            }
+        }
+        for(int i = 0; i < additionalHolds.size(); i++){
+            if(additionalHolds[i].position.y >= 10.0f*(k-1) && additionalHolds[i].position.y < 10.0f*k){
+                temp.push_back(additionalHolds[i]);
             }
         }
         Chunk chunk;

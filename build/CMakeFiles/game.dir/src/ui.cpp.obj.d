@@ -260,4 +260,5 @@ CMakeFiles/game.dir/src/ui.cpp.obj: C:\Users\vadle\game\src\ui.cpp \
  C:/msys64/mingw64/include/c++/15.2.0/fstream \
  C:/msys64/mingw64/include/c++/15.2.0/x86_64-w64-mingw32/bits/basic_file.h \
  C:/msys64/mingw64/include/c++/15.2.0/x86_64-w64-mingw32/bits/c++io.h \
- C:/msys64/mingw64/include/c++/15.2.0/bits/fstream.tcc
+ C:/msys64/mingw64/include/c++/15.2.0/bits/fstream.tcc \
+ C:/msys64/mingw64/include/c++/15.2.0/iostream

@@ -27,8 +27,9 @@ public:
     Vector3 position;
     
     Hold(Vector3 wallPos, Vector3 offset, Color color);
+    
+    Vector3 wallPosition;
 
-    Vector3 getWorldPosition();
     void draw();
     BoundingBox getBoundingBox();
 };

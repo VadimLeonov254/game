@@ -11,8 +11,10 @@ class Route{
 public:   
 
     std::vector<Hold> holds_route;
+    
+    bool isHovered = false;
 
-    float grade;
+    float grade = 0;
     
     Route(std::vector<Hold> holds);
 

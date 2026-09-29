@@ -18,6 +18,8 @@ public:
     float pitch = 0.0f;
     
     int check = 0;
+    
+    bool isHovering = false;
 
     float currHeight = position.y - 1.8f;
 
@@ -39,7 +41,7 @@ public:
     bool selectingRL = false;
     bool selectingLL = false;
 
-    bool isTopped = true;
+    bool isTopped = false;
     
     bool createMap = false;
     bool loadMap = false;

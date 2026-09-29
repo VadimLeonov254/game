@@ -8,6 +8,14 @@
 #include "json.hpp"
 #include "filesystem"
 #include<fstream>
+#include "rlgl.h"
+
+#if defined(PLATFORM_DESKTOP)
+    #define GLSL_VERSION            330
+#else   
+    #define GLSL_VERSION            100
+#endif
+
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -20,7 +28,6 @@ Cube Climbing::generateWallFromFile(std::string map_file){
     if(!file.is_open()){
         std::cerr << "Could not open the file" << '\n';
     }    
-
     
     Cube wall;
 
@@ -28,12 +35,29 @@ Cube Climbing::generateWallFromFile(std::string map_file){
 
     json data = json::parse(file);
     try{
+        
+        Shader wallShader = LoadShader(TextFormat("res/shaders/granite.vs", GLSL_VERSION),
+                                       TextFormat("res/shaders/granite.fs", GLSL_VERSION));
+
+
         wall.position = (Vector3){data["wall"]["wallX"], data["wall"]["wallY"], data["wall"]["wallZ"]};
         wall.width = data["wall"]["width"];
         wall.height = data["wall"]["height"];
         wall.length = data["wall"]["length"];
         
         wall.rappPosition = (Vector3){data["rapp"]["rappX"], data["rapp"]["rappY"], data["rapp"]["rappZ"]};
+        
+        int wallDim = GetShaderLocation(wallShader, "wallDim");
+    
+        SetShaderValue(wallShader, wallDim, &wall.position, SHADER_UNIFORM_VEC3);
+
+        Mesh wallMesh = GenMeshCube(wall.width, wall.height, wall.length);
+   
+        Model modelTemp = LoadModelFromMesh(wallMesh);
+    
+        modelTemp.materials[0].shader = wallShader;    
+        
+        wall.wallModel = modelTemp;
 
         wall.generateRoutesFromFile(map_file);
 
@@ -41,6 +65,8 @@ Cube Climbing::generateWallFromFile(std::string map_file){
         std::cerr << "parse error" << e.what() << '\n';
     }
     
+    std::cout << "yess" << '\n';
+
     return wall;
 
 }
@@ -55,7 +81,7 @@ Cube Climbing::generateWall(){
 
     float h = std::fabs(dim(gen));
     float l = std::fabs(dim(gen));
-    
+     
     std::uniform_int_distribution<> r(1, l/4);
     std::uniform_real_distribution<float> distw(5.5f, 12.0f);
 
@@ -63,22 +89,43 @@ Cube Climbing::generateWall(){
     //std::cout << num << '\n';
     Cube wall;
     
-    wall.position = (Vector3){-dist(gen), h/2, dist(gen)/10};
+    Shader wallShader = LoadShader(TextFormat("res/shaders/granite.vs", GLSL_VERSION),
+                                   TextFormat("res/shaders/granite.fs", GLSL_VERSION));
+
+    wall.position = (Vector3){dist(gen), h/2, dist(gen)/10};
     wall.width = 1.0f + distw(gen);
     wall.height = h;
     wall.length = l;
     wall.color = GRAY;
     
-    Mesh wallMesh = GenMeshCube(wall.width, h, l);
-    
-    Model modelTemp = LoadModelFromMesh(wallMesh);
+    Vector3 dimW = {l, h, wall.width};
 
-    modelTemp.materials[0].maps[MATERIAL_MAP_ROUGHNESS].value = 0.5f;
+    int wallDim = GetShaderLocation(wallShader, "wallDim");
+    
+    SetShaderValue(wallShader, wallDim, &dimW, SHADER_UNIFORM_VEC3);
+
+    Mesh wallMesh = GenMeshCube(wall.width, h, l);
+   
+    //Mesh wallMesh = GenMeshCube(wall.width, wall.width, wall.width);
+
+    Model modelTemp = LoadModelFromMesh(wallMesh);
+    
+    modelTemp.materials[0].shader = wallShader;    
+
+    /*
+    Image noise = GenImagePerlinNoise(4056, 4056, 101, 101, 100.0f);
+
+    Texture2D tex = LoadTextureFromImage(GenImagePerlinNoise(256, 256, 10, 10, 100.0f));
+    
+    Texture2D tex = LoadTextureFromImage(noise);
+
+    modelTemp.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = tex;
+    */
 
     wall.wallModel = modelTemp;
 
-
     wall.rappPosition = (Vector3){wall.position.x + wall.width/2.0f, wall.height, wall.position.z};
+    
 
     for(int i = 0; i < num; i++){
         wall.generateRoute();
@@ -150,17 +197,17 @@ void Climbing::update(Player& player, std::vector<Chunk>& chunks){
                         }
                     }
                 }
-            if(player.selectingRL || player.selectingLL){
-                float distHips = Vector3Distance(hipsPoint, holds[i].position);
-                RayCollision collision = GetRayCollisionBox(ray, holds[i].getBoundingBox());
-                if(collision.hit && distHips <= player.limbLength){
-                    if(collision.distance < closestRay){
-                        closestRay = collision.distance;
-                        holdPointHips = collision.point; 
-                        foundHold = true;
+                if(player.selectingRL || player.selectingLL){
+                    float distHips = Vector3Distance(hipsPoint, holds[i].position);
+                    RayCollision collision = GetRayCollisionBox(ray, holds[i].getBoundingBox());
+                    if(collision.hit && distHips <= player.limbLength){
+                        if(collision.distance < closestRay){
+                            closestRay = collision.distance;
+                            holdPointHips = collision.point; 
+                            foundHold = true;
+                        }
                     }
                 }
-            }
         }
 
                 if(IsKeyPressed(KEY_E)){
@@ -241,22 +288,22 @@ void Climbing::drawLimbs(Player& player){
     
 
     if(player.onHoldRL){
-        DrawCylinderEx((Vector3){player.position.x, player.position.y - 0.9f, player.position.z - 0.1f}, player.grabPointRL, 0.03f, 0.04f, 8, Fade(BLACK, 0.5f));
+        DrawCylinderEx((Vector3){player.position.x, player.position.y - 0.9f, player.position.z + 0.1f}, player.grabPointRL, 0.03f, 0.04f, 8, Fade(BLACK, 0.5f));
         DrawCube(player.grabPointRL, 0.1f, 0.1f, 0.1f, BLACK);
     }
 
     if(player.onHoldLL){
-        DrawCylinderEx((Vector3){player.position.x, player.position.y - 0.9f, player.position.z + 0.1f}, player.grabPointLL, 0.03f, 0.04f, 8, Fade(BLACK, 0.5f));
+        DrawCylinderEx((Vector3){player.position.x, player.position.y - 0.9f, player.position.z - 0.1f}, player.grabPointLL, 0.03f, 0.04f, 8, Fade(BLACK, 0.5f));
         DrawCube(player.grabPointLL, 0.1f, 0.1f, 0.1f, BLACK);
     }
 
     if(player.onHoldRA){
-        DrawCylinderEx((Vector3){player.position.x, player.position.y - 0.1f, player.position.z - 0.15f}, player.grabPointRA, 0.03f, 0.04f, 8, Fade(BLACK, 0.5f));
+        DrawCylinderEx((Vector3){player.position.x, player.position.y - 0.1f, player.position.z + 0.15f}, player.grabPointRA, 0.03f, 0.04f, 8, Fade(BLACK, 0.5f));
         DrawCube(player.grabPointRA, 0.1f, 0.1f, 0.1f, BLACK);
     }
 
     if(player.onHoldLA){
-        DrawCylinderEx((Vector3){player.position.x, player.position.y - 0.1f, player.position.z + 0.1f}, player.grabPointLA, 0.03f, 0.04f, 8, Fade(BLACK, 0.5f));
+        DrawCylinderEx((Vector3){player.position.x, player.position.y - 0.1f, player.position.z - 0.1f}, player.grabPointLA, 0.03f, 0.04f, 8, Fade(BLACK, 0.5f));
         DrawCube(player.grabPointLA, 0.1f, 0.1f, 0.1f, BLACK);
     }
 }

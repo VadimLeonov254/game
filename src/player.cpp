@@ -172,14 +172,18 @@ void Player::applyCollision(float dt, Cube& wall){
     }
     
 
-    bool checkpo = position.x > wall.position.x - wall.width/2 - 0.49f &&
+    bool checkpo =
+    position.x > wall.position.x - wall.width/2 - 0.49f &&
     position.x < wall.position.x + wall.width/2 + 0.49f &&
     position.z > wall.position.z - wall.length/2 - 0.49f &&
     position.z < wall.position.z + wall.length/2 + 0.49f; 
+    
+    bool isClimbing = onHold && !isGrounded && !isRappelling;
 
-    if(position.y >= wall.height && checkpo == true && onHold == false && isGrounded == false){
-        isGrounded = true;
+/*
+    if(position.y >= wall.height + wall.position.y && checkpo == true && onHold == false && isGrounded == false){
         isTopped = true;
+    }
         if(IsKeyPressed(KEY_SPACE)){
             velocity.y = 5.0f;
             isGrounded = false;
@@ -199,15 +203,36 @@ void Player::applyCollision(float dt, Cube& wall){
         isGrounded = false;
         isTopped = false;
     }
+*/
 
-    if(isRappelling == false && !onHold && isGrounded == false){
+    if(position.y >= wall.height/2.0f + wall.position.y && checkpo == true){
+        isTopped = true;
+        std::cout << "look" << '\n';
+    }
+
+    std::cout << isTopped + 10 << '\n'; 
+ 
+    if(isClimbing == false){
         velocity.y -= 9.8f * dt;
         position.y += velocity.y * dt;
-            
-        if(position.y <= 1.8f){
-            position.y = 1.8f;
-            velocity.y = 0;
-            isGrounded = true;
+        
+        if(isTopped == false){
+            if(position.y <= 1.8f){
+                position.y = 1.8f;
+                velocity.y = 0;
+                isGrounded = true;
+            }
+        }else{
+            if(position.y <= wall.height/2.0f + wall.position.y + 1.8f){
+                position.y = wall.height/2.0f + wall.position.y + 1.8f;
+                velocity.y = 0;
+                isGrounded = true;
+            }
+
+            if(checkpo == false){
+                isTopped = false;
+            }
+
         }
     }
 
@@ -240,10 +265,10 @@ void Player::applyMovement(float dt){
         
     if(onHoldLA || onHoldRA || onHoldLL || onHoldRL){
             
-        if(IsKeyDown(KEY_W)) moveDir = Vector3Add(moveDir, {0,1,0});
+        if(IsKeyDown(KEY_W)) moveDir = Vector3Add(moveDir, {-0.1,1,0});
         if(IsKeyDown(KEY_S)) moveDir = Vector3Subtract(moveDir, {0,1,0});
-        if(IsKeyDown(KEY_D)) moveDir = Vector3Subtract(moveDir, {0,0,1});
-        if(IsKeyDown(KEY_A)) moveDir = Vector3Add(moveDir, {0,0,1});
+        if(IsKeyDown(KEY_D)) moveDir = Vector3Add(moveDir, {0,0,1});
+        if(IsKeyDown(KEY_A)) moveDir = Vector3Subtract(moveDir, {0,0,1});
            
 
         bool checkLegs = onHoldRL || onHoldLL;
@@ -450,6 +475,8 @@ void Player::rappDown(Cube& wall){
     position.x = wall.position.x + wall.width + 0.5f;
     isRappelling = true;
     
+    
+
     isGrounded = false;
     
 

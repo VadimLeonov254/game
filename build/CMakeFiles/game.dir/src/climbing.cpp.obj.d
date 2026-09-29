@@ -275,4 +275,4 @@ CMakeFiles/game.dir/src/climbing.cpp.obj: \
  C:/msys64/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/mmintrin.h \
  C:/msys64/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/mwaitintrin.h \
  C:/msys64/mingw64/include/c++/15.2.0/bits/random.tcc \
- C:/Users/vadle/game/hdr/json.hpp
+ C:/Users/vadle/game/hdr/json.hpp C:/msys64/mingw64/include/rlgl.h

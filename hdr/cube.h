@@ -26,6 +26,10 @@ public:
 
     std::vector<Route> routes;
     
+    std::vector<Hold> additionalHolds;
+
+    int hovered = 0;
+
     std::vector<Chunk> chunks;
 
     void generateRoute();

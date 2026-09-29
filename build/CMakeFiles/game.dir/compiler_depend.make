@@ -409,6 +409,7 @@ CMakeFiles/game.dir/src/climbing.cpp.obj: C:/Users/vadle/game/src/climbing.cpp \
   C:/msys64/mingw64/include/pthread_unistd.h \
   C:/msys64/mingw64/include/raylib.h \
   C:/msys64/mingw64/include/raymath.h \
+  C:/msys64/mingw64/include/rlgl.h \
   C:/msys64/mingw64/include/sched.h \
   C:/msys64/mingw64/include/sec_api/stdio_s.h \
   C:/msys64/mingw64/include/sec_api/stdlib_s.h \
@@ -2309,6 +2310,7 @@ CMakeFiles/game.dir/src/ui.cpp.obj: C:/Users/vadle/game/src/ui.cpp \
   C:/msys64/mingw64/include/c++/15.2.0/iomanip \
   C:/msys64/mingw64/include/c++/15.2.0/ios \
   C:/msys64/mingw64/include/c++/15.2.0/iosfwd \
+  C:/msys64/mingw64/include/c++/15.2.0/iostream \
   C:/msys64/mingw64/include/c++/15.2.0/istream \
   C:/msys64/mingw64/include/c++/15.2.0/iterator \
   C:/msys64/mingw64/include/c++/15.2.0/limits \
@@ -2428,8 +2430,6 @@ C:/Users/vadle/game/hdr/nanosvgrast.h:
 
 C:/Users/vadle/game/hdr/nanosvg.h:
 
-C:/msys64/mingw64/include/rlgl.h:
-
 C:/Users/vadle/game/hdr/environment.h:
 
 C:/Users/vadle/game/src/environment.cpp:
@@ -2447,6 +2447,8 @@ C:/msys64/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/emmintrin.h:
 C:/msys64/mingw64/include/string.h:
 
 C:/msys64/mingw64/include/sec_api/string_s.h:
+
+C:/msys64/mingw64/include/rlgl.h:
 
 C:/msys64/mingw64/include/raymath.h:
 

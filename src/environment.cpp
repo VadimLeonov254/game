@@ -38,14 +38,18 @@ void Environment::LoadSkybox(const std::string& path){
 void Environment::LoadGround(Shader& shader){
     
     Mesh meshGround = GenMeshPlane(100.0f, 100.0f, 15.0f, 15.0f);
+    
+    //meshGround = GenMeshCube(100.0f, 10.1f, 100.0f);
 
     ground = LoadModelFromMesh(meshGround);
 
     Texture2D texture_map = LoadTexture("res/green.png");
+    
+    //texture_map = LoadTexture("res/Heightmap.png");
 
     ground.materials[0].shader = shader;
-    ground.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = LoadTexture("res/green.png");
-    ground.materials[0].maps[MATERIAL_MAP_NORMAL].texture = LoadTexture("res/grass_normal.png");
+    ground.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texture_map;
+    ground.materials[0].maps[MATERIAL_MAP_NORMAL].texture = LoadTexture("res/Heightmap.png");
     
     
     GenTextureMipmaps(&ground.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture);
@@ -55,7 +59,6 @@ void Environment::LoadGround(Shader& shader){
     SetTextureFilter(ground.materials[0].maps[MATERIAL_MAP_NORMAL].texture, TEXTURE_FILTER_TRILINEAR);
 
 
-    ground.materials[0].maps[MATERIAL_MAP_METALNESS].value = 0.5f;
 
 /*    Vector3 *vertices = (Vector3 *)meshGround.vertices;
     

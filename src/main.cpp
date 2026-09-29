@@ -169,6 +169,9 @@ int main(void){
     DisableCursor();
 
     SetTargetFPS(85);
+    
+    Shader wallShader = LoadShader(TextFormat("res/shaders/granite.vs", GLSL_VERSION),
+                                   TextFormat("res/shaders/granite.fs", GLSL_VERSION));
 
     Shader shader = LoadShader(TextFormat("res/shaders/normalmap.vs", GLSL_VERSION),
                                TextFormat("res/shaders/normalmap.fs", GLSL_VERSION));
@@ -197,7 +200,11 @@ int main(void){
     bool justSwitched = false;
 
     while(!closeGame){
-        
+    
+        if (IsKeyPressed(KEY_P)) {
+            TakeScreenshot("screenshot.png");
+        }
+
         if(IsKeyDown(KEY_LEFT_ALT) && IsKeyDown(KEY_F4)){
             closeGame = true;
         }
@@ -309,6 +316,7 @@ int main(void){
                 if(SaveAndExitButton.isClicked()){
                     player.savePlayerToFile(currMap);
                     justSwitched = true;
+                    ui.mapIsClosed = true;
                     CurrentScreen = Screen::MENU;
                 }
 
@@ -346,7 +354,7 @@ int main(void){
                                         if(mapButtons[i].isClicked()){
                                             //std::cout << map_files[i].path().filename().string().c_str() << '\n';
                                             currMap = map_files[i].path().filename().string().c_str();
-                                            player.loadPlayerFromFile(currMap);
+                                            //player.loadPlayerFromFile(currMap);
                                             wall = climbing.generateWallFromFile(currMap);
                                             isSet = wall.setChunks();
                                             CurrentScreen = Screen::GAME;
@@ -384,7 +392,6 @@ int main(void){
 
                     SetShaderValue(shader, useNormalMapLoc, &useNormalMap, SHADER_UNIFORM_INT);
 
-
                     BeginMode3D(player.camera);
             
                     rlDisableBackfaceCulling();
@@ -394,9 +401,9 @@ int main(void){
                     rlEnableDepthMask();
         
                     BeginShaderMode(shader);
-                        DrawModel(env.ground, mapPosition, 1.0f, (Color) {255, 255, 255, 255});
+                        DrawModel(env.ground, mapPosition, 1.0f, (Color) {0, 128, 0, 255});
                     EndShaderMode();
- 
+                   
                     
                     wall.draw();
                     
@@ -410,6 +417,10 @@ int main(void){
                         }
                     }
                     
+                    for(int i = 0; i < wall.additionalHolds.size(); i++){
+                        wall.additionalHolds[i].draw();
+                    }
+
                     DrawCube(wall.rappPosition, 1.0f, 1.0f, 1.0f, PINK); 
                     climbing.drawLimbs(player);
 
@@ -423,7 +434,7 @@ int main(void){
                     
                     ui.drawCrosshair(player);
        
-                    ui.drawMap(wall);  
+                    ui.drawMap(wall, player);  
                     
                 } break;
                 
@@ -463,7 +474,8 @@ std::string generateMap(Player& player, Cube& wall, Climbing& climbing){
     if(player.createMap == true){
         //std::cout << "just spawned" << '\n';
         wall = climbing.generateWall();
-                    
+        std::cout << "generated" << '\n';
+
         isSet = wall.setChunks();
         //std::cout << "well" << '\n';
         player.isTopped = false;
@@ -530,7 +542,17 @@ std::string generateMap(Player& player, Cube& wall, Climbing& climbing){
 
             jsonObj["routes"].push_back(routeJson);
         }
-                    
+        
+        jsonObj["AdditionalHolds"] = json::array();
+
+        for(const auto& hold : wall.additionalHolds){
+            jsonObj["AdditionalHolds"].push_back({
+                {"holdX", hold.position.x},
+                {"holdY", hold.position.y},
+                {"holdZ", hold.position.z}
+            });
+        }
+
         player.createMap = false;         
                 
         std::uniform_int_distribution<int> seed(1,10000);
